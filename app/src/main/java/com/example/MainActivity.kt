@@ -27,8 +27,8 @@ class MainActivity : ComponentActivity() {
         val db = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java, "person_db"
-        ).fallbackToDestructiveMigration().build()
-        val repository = PersonRepository(db.personDao(), db.householdDao())
+        ).addMigrations(AppDatabase.MIGRATION_4_5).build()
+        val repository = PersonRepository(db.personDao(), db.householdDao(), db.personHistoryDao())
 
         val factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {

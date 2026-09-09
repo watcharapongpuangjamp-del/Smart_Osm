@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,7 +32,8 @@ fun HouseDetailScreen(
     householdId: Long,
     onNavigateBack: () -> Unit,
     onAddMemberClick: () -> Unit,
-    onEditMemberClick: (Long) -> Unit
+    onEditMemberClick: (Long) -> Unit,
+    onHistoryClick: (Long) -> Unit
 ) {
     val householdWithPersons by viewModel.getHouseholdWithPersonsById(householdId).collectAsStateWithLifecycle(initialValue = null)
     
@@ -114,7 +116,7 @@ fun HouseDetailScreen(
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("เจ้าบ้าน", style = MaterialTheme.typography.labelLarge)
-                            Text("${houseMembers.count { it.houseStatus == "เจ้าบ้าน" }} คน", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            Text("${houseMembers.count { it.houseStatus == com.example.data.HouseholdRole.HEAD }} คน", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -145,10 +147,10 @@ fun HouseDetailScreen(
                             modifier = Modifier
                                 .size(56.dp)
                                 .clip(CircleShape)
-                                .background(if (person.gender == "ชาย") Color(0xFFBBDEFB) else Color(0xFFF8BBD0)),
+                                .background(if (person.gender == com.example.data.Gender.MALE) Color(0xFFBBDEFB) else Color(0xFFF8BBD0)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Person, contentDescription = null, tint = if (person.gender == "ชาย") Color(0xFF1976D2) else Color(0xFFC2185B))
+                            Icon(Icons.Filled.Person, contentDescription = null, tint = if (person.gender == com.example.data.Gender.MALE) Color(0xFF1976D2) else Color(0xFFC2185B))
                         }
                         
                         Spacer(modifier = Modifier.width(16.dp))
@@ -162,11 +164,11 @@ fun HouseDetailScreen(
                             Spacer(modifier = Modifier.height(6.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 StatusChip(
-                                    text = person.houseStatus, 
-                                    backgroundColor = if (person.houseStatus == "เจ้าบ้าน") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                    textColor = if (person.houseStatus == "เจ้าบ้าน") MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = person.houseStatus.value, 
+                                    backgroundColor = if (person.houseStatus == com.example.data.HouseholdRole.HEAD) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    textColor = if (person.houseStatus == com.example.data.HouseholdRole.HEAD) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                if (person.personStatus == "เสียชีวิต") {
+                                if (person.personStatus == com.example.data.PersonStatus.DEAD) {
                                     StatusChip(
                                         text = "เสียชีวิต", 
                                         backgroundColor = MaterialTheme.colorScheme.errorContainer,
@@ -178,6 +180,9 @@ fun HouseDetailScreen(
                         
                         // Actions
                         Column {
+                            IconButton(onClick = { onHistoryClick(person.id) }) {
+                                Icon(Icons.Filled.Info, contentDescription = "ประวัติ", tint = MaterialTheme.colorScheme.secondary)
+                            }
                             IconButton(onClick = { onEditMemberClick(person.id) }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "แก้ไข", tint = MaterialTheme.colorScheme.primary)
                             }

@@ -36,6 +36,9 @@ fun HouseholdFormScreen(
     var houseNo by remember { mutableStateOf("") }
     var latitude by remember { mutableStateOf<Double?>(null) }
     var longitude by remember { mutableStateOf<Double?>(null) }
+    var locationAccuracy by remember { mutableStateOf<Float?>(null) }
+    var locationCapturedAt by remember { mutableStateOf<Long?>(null) }
+    var locationProvider by remember { mutableStateOf<String?>(null) }
     
     val locationPermissionState = rememberPermissionState(permission = Manifest.permission.ACCESS_FINE_LOCATION)
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -47,6 +50,9 @@ fun HouseholdFormScreen(
                 houseNo = it.houseNo
                 latitude = it.latitude
                 longitude = it.longitude
+                locationAccuracy = it.locationAccuracy
+                locationCapturedAt = it.locationCapturedAt
+                locationProvider = it.locationProvider
             }
         }
     }
@@ -70,7 +76,10 @@ fun HouseholdFormScreen(
                             id = if (householdId == -1L) 0 else householdId,
                             houseNo = houseNo,
                             latitude = latitude,
-                            longitude = longitude
+                            longitude = longitude,
+                            locationAccuracy = locationAccuracy,
+                            locationCapturedAt = locationCapturedAt,
+                            locationProvider = locationProvider
                         )
                         if (householdId == -1L) {
                             viewModel.insertHousehold(household) { newId ->
@@ -107,6 +116,16 @@ fun HouseholdFormScreen(
             
             if (latitude != null && longitude != null) {
                 Text("Lat: $latitude\nLon: $longitude", style = MaterialTheme.typography.bodyMedium)
+                if (locationAccuracy != null) {
+                    Text("ความแม่นยำ: ${locationAccuracy}m", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (locationProvider != null) {
+                    Text("Provider: $locationProvider", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (locationCapturedAt != null) {
+                    val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(locationCapturedAt!!))
+                    Text("อัปเดตล่าสุด: $dateStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             } else {
                 Text("ยังไม่มีพิกัด", style = MaterialTheme.typography.bodyMedium)
             }
@@ -121,6 +140,9 @@ fun HouseholdFormScreen(
                                 if (location != null) {
                                     latitude = location.latitude
                                     longitude = location.longitude
+                                    locationAccuracy = if (location.hasAccuracy()) location.accuracy else null
+                                    locationCapturedAt = location.time
+                                    locationProvider = location.provider
                                     Toast.makeText(context, "ดึงพิกัดสำเร็จ", Toast.LENGTH_SHORT).show()
                                 } else {
                                     Toast.makeText(context, "ไม่สามารถหาตำแหน่งได้", Toast.LENGTH_SHORT).show()

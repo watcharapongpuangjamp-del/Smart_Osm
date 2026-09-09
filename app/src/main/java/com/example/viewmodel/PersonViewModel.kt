@@ -77,8 +77,8 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
     
     fun validateThaiNationalId(id: String): Boolean = ValidationUtils.isValidThaiNationalId(id)
 
-    fun calculateAge(birthDate: LocalDate, personStatus: String): Int? {
-        if (personStatus == "เสียชีวิต") return null
+    fun calculateAge(birthDate: LocalDate?, personStatus: com.example.data.PersonStatus): Int? {
+        if (personStatus == com.example.data.PersonStatus.DEAD || birthDate == null) return null
         return Period.between(birthDate, LocalDate.now()).years
     }
 
@@ -112,15 +112,17 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
                 householdId = item.household.id,
                 houseNo = item.household.houseNo,
                 totalMembers = persons.size,
-                males = persons.count { it.gender == "ชาย" },
-                females = persons.count { it.gender == "หญิง" },
-                owners = persons.count { it.houseStatus == "เจ้าบ้าน" },
-                residents = persons.count { it.houseStatus == "ผู้อาศัย" },
+                males = persons.count { it.gender == com.example.data.Gender.MALE },
+                females = persons.count { it.gender == com.example.data.Gender.FEMALE },
+                owners = persons.count { it.houseStatus == com.example.data.HouseholdRole.HEAD },
+                residents = persons.count { it.houseStatus == com.example.data.HouseholdRole.RESIDENT },
                 latitude = item.household.latitude,
                 longitude = item.household.longitude
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun getHistoryForPerson(personId: Long) = repository.getHistoryForPerson(personId)
 
     fun importExcelData(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -156,11 +158,14 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
                     
                     if (nationalId.isBlank() && fullName.isBlank()) continue
                     
-                    val gender = getCellValueAsString(row.getCell(4))
+                    val gender = com.example.data.Gender.fromString(getCellValueAsString(row.getCell(4)))
                     val birthDate = parseDateCell(row.getCell(5))
-                    val houseStatus = getCellValueAsString(row.getCell(7)).ifBlank { "ผู้อาศัย" }
-                    val personStatus = getCellValueAsString(row.getCell(8)).ifBlank { "มีชีวิต" }
-                    val dataStatus = getCellValueAsString(row.getCell(10)).ifBlank { "ต้องตรวจสอบ" }
+                    val houseStatusStr = getCellValueAsString(row.getCell(7))
+                    val houseStatus = if (houseStatusStr.isBlank()) com.example.data.HouseholdRole.RESIDENT else com.example.data.HouseholdRole.fromString(houseStatusStr)
+                    val personStatusStr = getCellValueAsString(row.getCell(8))
+                    val personStatus = if (personStatusStr.isBlank()) com.example.data.PersonStatus.ALIVE else com.example.data.PersonStatus.fromString(personStatusStr)
+                    val dataStatusStr = getCellValueAsString(row.getCell(10))
+                    val dataStatus = if (birthDate == null) com.example.data.DataStatus.NEEDS_REVIEW else if (dataStatusStr.isBlank()) com.example.data.DataStatus.NEEDS_REVIEW else com.example.data.DataStatus.fromString(dataStatusStr)
                     
                     val person = Person(
                         householdId = currentHouseholdId,
@@ -225,8 +230,8 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
         }
     }
 
-    private fun parseDateCell(cell: Cell?): LocalDate {
-        if (cell == null) return LocalDate.now()
+    private fun parseDateCell(cell: Cell?): LocalDate? {
+        if (cell == null) return null
         return try {
             if (cell.cellType == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
                 val date = cell.dateCellValue
@@ -241,15 +246,15 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
                         try {
                             LocalDate.parse(str) // fallback yyyy-MM-dd
                         } catch (e2: Exception) {
-                            LocalDate.now()
+                            null
                         }
                     }
                 } else {
-                    LocalDate.now()
+                    null
                 }
             }
         } catch (e: Exception) {
-            LocalDate.now()
+            null
         }
     }
 }

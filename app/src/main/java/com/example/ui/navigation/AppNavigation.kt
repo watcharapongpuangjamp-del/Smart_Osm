@@ -102,7 +102,8 @@ fun AppNavigation(
                     householdId = householdId,
                     onNavigateBack = { navController.popBackStack() },
                     onAddMemberClick = { navController.navigate("person_form/-1?householdId=$householdId") },
-                    onEditMemberClick = { personId -> navController.navigate("person_form/$personId?householdId=$householdId") }
+                    onEditMemberClick = { personId -> navController.navigate("person_form/$personId?householdId=$householdId") },
+                    onHistoryClick = { personId -> navController.navigate("person_history/$personId") }
                 )
             }
 
@@ -135,6 +136,17 @@ fun AppNavigation(
                     viewModel = viewModel,
                     personId = personId,
                     householdId = householdId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = "person_history/{personId}",
+                arguments = listOf(navArgument("personId") { type = NavType.LongType })
+            ) { backStackEntry ->
+                val personId = backStackEntry.arguments?.getLong("personId") ?: -1L
+                PersonHistoryScreen(
+                    viewModel = viewModel,
+                    personId = personId,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

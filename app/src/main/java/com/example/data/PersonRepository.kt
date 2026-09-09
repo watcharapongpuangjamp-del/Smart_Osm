@@ -1,11 +1,17 @@
 package com.example.data
 
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.Flow
 
 class PersonRepository(
     private val personDao: PersonDao,
-    private val householdDao: HouseholdDao
+    private val householdDao: HouseholdDao,
+    private val personHistoryDao: PersonHistoryDao
 ) {
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val personAdapter = moshi.adapter(Person::class.java)
+
     val allPersons: Flow<List<Person>> = personDao.getAllPersons()
     val allHouseholdsWithPersons: Flow<List<HouseholdWithPersons>> = householdDao.getHouseholdsWithPersons()
 
@@ -36,15 +42,42 @@ class PersonRepository(
 
     // Person Operations
     suspend fun insert(person: Person) {
-        personDao.insertPerson(person)
+        val newId = personDao.insertPerson(person)
+        val insertedPerson = person.copy(id = newId)
+        personHistoryDao.insert(
+            PersonHistory(
+                personId = newId,
+                action = "CREATE",
+                oldValue = null,
+                newValue = personAdapter.toJson(insertedPerson)
+            )
+        )
     }
 
     suspend fun update(person: Person) {
+        val oldPerson = personDao.getPersonById(person.id)
         personDao.updatePerson(person)
+        personHistoryDao.insert(
+            PersonHistory(
+                personId = person.id,
+                action = "UPDATE",
+                oldValue = oldPerson?.let { personAdapter.toJson(it) },
+                newValue = personAdapter.toJson(person)
+            )
+        )
     }
 
     suspend fun delete(person: Person) {
+        val oldPerson = personDao.getPersonById(person.id)
         personDao.deletePerson(person)
+        personHistoryDao.insert(
+            PersonHistory(
+                personId = person.id,
+                action = "DELETE",
+                oldValue = oldPerson?.let { personAdapter.toJson(it) },
+                newValue = null
+            )
+        )
     }
     
     suspend fun getPersonById(id: Long): Person? {
@@ -53,5 +86,9 @@ class PersonRepository(
     
     suspend fun getPersonByNationalId(nationalId: String): Person? {
         return personDao.getPersonByNationalId(nationalId)
+    }
+    
+    fun getHistoryForPerson(personId: Long): Flow<List<PersonHistory>> {
+        return personHistoryDao.getHistoryForPerson(personId)
     }
 }

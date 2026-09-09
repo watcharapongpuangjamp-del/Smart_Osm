@@ -38,15 +38,15 @@ fun PersonFormScreen(
 
     var nationalId by remember { mutableStateOf("") }
     var fullName by remember { mutableStateOf("") }
-    var gender by remember { mutableStateOf("ชาย") }
-    var birthDate by remember { mutableStateOf(LocalDate.now()) }
-    var houseStatus by remember { mutableStateOf("เจ้าบ้าน") }
-    var personStatus by remember { mutableStateOf("มีชีวิต") }
-    var dataStatus by remember { mutableStateOf("ยืนยันแล้ว") }
+    var gender by remember { mutableStateOf(com.example.data.Gender.MALE) }
+    var birthDate by remember { mutableStateOf<LocalDate?>(null) }
+    var houseStatus by remember { mutableStateOf(com.example.data.HouseholdRole.HEAD) }
+    var personStatus by remember { mutableStateOf(com.example.data.PersonStatus.ALIVE) }
+    var dataStatus by remember { mutableStateOf(com.example.data.DataStatus.VERIFIED) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = birthDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        initialSelectedDateMillis = birthDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli() ?: Instant.now().toEpochMilli()
     )
 
     LaunchedEffect(personId) {
@@ -150,13 +150,13 @@ fun PersonFormScreen(
                             DropdownMenuField(
                                 label = "เพศ",
                                 options = listOf("ชาย", "หญิง"),
-                                selectedOption = gender,
-                                onOptionSelected = { gender = it }
+                                selectedOption = gender.value,
+                                onOptionSelected = { gender = com.example.data.Gender.fromString(it) }
                             )
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             OutlinedTextField(
-                                value = birthDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                                value = birthDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: "",
                                 onValueChange = {},
                                 label = { Text("วันเกิด") },
                                 readOnly = true,
@@ -176,22 +176,22 @@ fun PersonFormScreen(
                     DropdownMenuField(
                         label = "สถานะในบ้าน",
                         options = listOf("เจ้าบ้าน", "ผู้อาศัย"),
-                        selectedOption = houseStatus,
-                        onOptionSelected = { houseStatus = it }
+                        selectedOption = houseStatus.value,
+                        onOptionSelected = { houseStatus = com.example.data.HouseholdRole.fromString(it) }
                     )
 
                     DropdownMenuField(
                         label = "สถานะบุคคล",
                         options = listOf("มีชีวิต", "เสียชีวิต"),
-                        selectedOption = personStatus,
-                        onOptionSelected = { personStatus = it }
+                        selectedOption = personStatus.value,
+                        onOptionSelected = { personStatus = com.example.data.PersonStatus.fromString(it) }
                     )
 
                     DropdownMenuField(
                         label = "สถานะข้อมูล",
                         options = listOf("ยืนยันแล้ว", "ต้องตรวจสอบ"),
-                        selectedOption = dataStatus,
-                        onOptionSelected = { dataStatus = it }
+                        selectedOption = dataStatus.value,
+                        onOptionSelected = { dataStatus = com.example.data.DataStatus.fromString(it) }
                     )
                 }
 

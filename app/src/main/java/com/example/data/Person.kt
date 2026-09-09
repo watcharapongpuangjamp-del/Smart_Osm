@@ -27,9 +27,9 @@ data class Person(
     val householdId: Long,
     val nationalId: String,
     val fullName: String,
-    val gender: String, // ชาย / หญิง
-    val birthDate: LocalDate,
-    val houseStatus: String, // เจ้าบ้าน / ผู้อาศัย
-    val personStatus: String, // มีชีวิต / เสียชีวิต
-    val dataStatus: String // ยืนยันแล้ว / ต้องตรวจสอบ
+    val gender: Gender,
+    val birthDate: LocalDate?,
+    val houseStatus: HouseholdRole,
+    val personStatus: PersonStatus,
+    val dataStatus: DataStatus = DataStatus.NEEDS_REVIEW
 )

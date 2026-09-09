@@ -14,7 +14,7 @@ interface PersonDao {
     fun getAllPersons(): Flow<List<Person>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPerson(person: Person)
+    suspend fun insertPerson(person: Person): Long
 
     @Update
     suspend fun updatePerson(person: Person)
