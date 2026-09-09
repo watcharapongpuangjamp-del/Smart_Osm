@@ -7,12 +7,13 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "households",
     indices = [
-        Index(value = ["houseNo", "villageNo", "subdistrict", "district", "province"], unique = true)
+        Index(value = ["householdUuid"], unique = true)
     ]
 )
 data class Household(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val householdUuid: String = java.util.UUID.randomUUID().toString(),
     val houseNo: String,
     val villageNo: String = "",
     val subdistrict: String = "",

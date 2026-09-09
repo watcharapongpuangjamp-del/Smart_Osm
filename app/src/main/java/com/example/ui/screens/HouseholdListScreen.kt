@@ -24,6 +24,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.Info
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,12 +34,56 @@ fun HouseholdListScreen(
     onAddHouseClick: () -> Unit
 ) {
     val houseSummary by viewModel.houseSummary.collectAsStateWithLifecycle()
+    val importResult by viewModel.importResult.collectAsStateWithLifecycle()
+    val isImporting by viewModel.isImporting.collectAsStateWithLifecycle()
     val context = LocalContext.current
     
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { viewModel.importExcelData(context, it) }
+    }
+
+    if (importResult != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearImportResult() },
+            title = { Text("รายงานการนำเข้าข้อมูล") },
+            text = {
+                Column {
+                    Text("ทั้งหมด: ${importResult!!.totalRows} รายการ")
+                    Text("สำเร็จ: ${importResult!!.successCount} รายการ", color = MaterialTheme.colorScheme.primary)
+                    Text("ผิดพลาด: ${importResult!!.failedCount} รายการ", color = MaterialTheme.colorScheme.error)
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("รายละเอียดข้อผิดพลาด:", fontWeight = FontWeight.Bold)
+                    Text("- ข้อมูลซ้ำ: ${importResult!!.duplicateCount}")
+                    Text("- เลขบัตร ปชช. ผิด: ${importResult!!.invalidNationalIdCount}")
+                    Text("- วันเกิดผิดรูปแบบ: ${importResult!!.invalidBirthDateCount}")
+                    Text("- ไม่มีบ้านเลขที่: ${importResult!!.invalidHouseNoCount}")
+                    Text("- ข้อมูลต้องตรวจสอบ: ${importResult!!.needsReviewCount}", color = MaterialTheme.colorScheme.secondary)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.clearImportResult() }) {
+                    Text("ตกลง")
+                }
+            }
+        )
+    }
+
+    if (isImporting) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("กำลังนำเข้าข้อมูล") },
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text("กรุณารอสักครู่...")
+                }
+            },
+            confirmButton = { }
+        )
     }
 
     Scaffold(

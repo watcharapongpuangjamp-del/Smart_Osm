@@ -83,7 +83,7 @@ fun PersonHistoryScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("ผู้ทำรายการ: ${history.operator} (Device: ${history.deviceId})", style = MaterialTheme.typography.bodySmall)
+                            Text("ผู้ทำรายการ: ${history.operatorName} (Device: ${history.deviceId}, Source: ${history.source})", style = MaterialTheme.typography.bodySmall)
                             
                             Spacer(modifier = Modifier.height(8.dp))
                             HorizontalDivider()

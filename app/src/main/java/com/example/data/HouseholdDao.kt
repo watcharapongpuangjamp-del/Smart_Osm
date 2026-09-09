@@ -24,7 +24,24 @@ interface HouseholdDao {
     @Query("SELECT * FROM households ORDER BY houseNo ASC")
     fun getHouseholdsWithPersons(): Flow<List<HouseholdWithPersons>>
 
+    @Query("SELECT COUNT(*) FROM households")
+    fun getTotalHouseholdsCount(): Flow<Int>
+
     @Transaction
     @Query("SELECT * FROM households WHERE id = :householdId LIMIT 1")
     fun getHouseholdWithPersonsById(householdId: Long): Flow<HouseholdWithPersons?>
+
+    @Query("""
+        SELECT h.id as householdId, h.houseNo, h.latitude, h.longitude,
+        COUNT(p.id) as totalMembers,
+        SUM(CASE WHEN p.gender = 'MALE' THEN 1 ELSE 0 END) as males,
+        SUM(CASE WHEN p.gender = 'FEMALE' THEN 1 ELSE 0 END) as females,
+        SUM(CASE WHEN p.houseStatus = 'HEAD' THEN 1 ELSE 0 END) as owners,
+        SUM(CASE WHEN p.houseStatus = 'RESIDENT' THEN 1 ELSE 0 END) as residents
+        FROM households h
+        LEFT JOIN persons p ON h.id = p.householdId
+        GROUP BY h.id, h.houseNo, h.latitude, h.longitude
+        ORDER BY h.houseNo ASC
+    """)
+    fun getHouseSummary(): Flow<List<HouseSummary>>
 }

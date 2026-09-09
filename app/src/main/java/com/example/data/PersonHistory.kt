@@ -8,10 +8,13 @@ data class PersonHistory(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val personId: Long,
-    val action: String, // "CREATE", "UPDATE", "DELETE"
+    val action: String, // "CREATE", "UPDATE", "DELETE", "IMPORT"
     val oldValue: String?, // JSON or formatted string of old state
     val newValue: String?, // JSON or formatted string of new state
     val timestamp: Long = System.currentTimeMillis(),
-    val operator: String = "admin", // Placeholder for logged-in user
-    val deviceId: String = "local" // Placeholder for device ID
+    val operatorId: String = "SYSTEM", 
+    val operatorName: String = "System",
+    val role: String = "SYSTEM",
+    val deviceId: String = "local",
+    val source: String = "SYSTEM" // e.g. "manual", "excel_import", "sync"
 )

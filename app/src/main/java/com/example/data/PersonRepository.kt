@@ -4,7 +4,10 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.Flow
 
+import androidx.room.withTransaction
+
 class PersonRepository(
+    private val db: AppDatabase,
     private val personDao: PersonDao,
     private val householdDao: HouseholdDao,
     private val personHistoryDao: PersonHistoryDao
@@ -14,6 +17,10 @@ class PersonRepository(
 
     val allPersons: Flow<List<Person>> = personDao.getAllPersons()
     val allHouseholdsWithPersons: Flow<List<HouseholdWithPersons>> = householdDao.getHouseholdsWithPersons()
+    val houseSummary: Flow<List<HouseSummary>> = householdDao.getHouseSummary()
+    
+    val totalPersonsCount: Flow<Int> = personDao.getTotalPersonsCount()
+    val totalHouseholdsCount: Flow<Int> = householdDao.getTotalHouseholdsCount()
 
     // Household Operations
     suspend fun insertHousehold(household: Household): Long {
@@ -42,42 +49,48 @@ class PersonRepository(
 
     // Person Operations
     suspend fun insert(person: Person) {
-        val newId = personDao.insertPerson(person)
-        val insertedPerson = person.copy(id = newId)
-        personHistoryDao.insert(
-            PersonHistory(
-                personId = newId,
-                action = "CREATE",
-                oldValue = null,
-                newValue = personAdapter.toJson(insertedPerson)
+        db.withTransaction {
+            val newId = personDao.insertPerson(person)
+            val insertedPerson = person.copy(id = newId)
+            personHistoryDao.insert(
+                PersonHistory(
+                    personId = newId,
+                    action = "CREATE",
+                    oldValue = null,
+                    newValue = personAdapter.toJson(insertedPerson)
+                )
             )
-        )
+        }
     }
 
     suspend fun update(person: Person) {
-        val oldPerson = personDao.getPersonById(person.id)
-        personDao.updatePerson(person)
-        personHistoryDao.insert(
-            PersonHistory(
-                personId = person.id,
-                action = "UPDATE",
-                oldValue = oldPerson?.let { personAdapter.toJson(it) },
-                newValue = personAdapter.toJson(person)
+        db.withTransaction {
+            val oldPerson = personDao.getPersonById(person.id)
+            personDao.updatePerson(person)
+            personHistoryDao.insert(
+                PersonHistory(
+                    personId = person.id,
+                    action = "UPDATE",
+                    oldValue = oldPerson?.let { personAdapter.toJson(it) },
+                    newValue = personAdapter.toJson(person)
+                )
             )
-        )
+        }
     }
 
     suspend fun delete(person: Person) {
-        val oldPerson = personDao.getPersonById(person.id)
-        personDao.deletePerson(person)
-        personHistoryDao.insert(
-            PersonHistory(
-                personId = person.id,
-                action = "DELETE",
-                oldValue = oldPerson?.let { personAdapter.toJson(it) },
-                newValue = null
+        db.withTransaction {
+            val oldPerson = personDao.getPersonById(person.id)
+            personDao.deletePerson(person)
+            personHistoryDao.insert(
+                PersonHistory(
+                    personId = person.id,
+                    action = "DELETE",
+                    oldValue = oldPerson?.let { personAdapter.toJson(it) },
+                    newValue = null
+                )
             )
-        )
+        }
     }
     
     suspend fun getPersonById(id: Long): Person? {

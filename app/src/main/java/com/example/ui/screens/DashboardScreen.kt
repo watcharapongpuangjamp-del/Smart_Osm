@@ -26,8 +26,8 @@ fun DashboardScreen(
     viewModel: PersonViewModel
 ) {
     val ageGroupSummary by viewModel.ageGroupSummary.collectAsStateWithLifecycle()
-    val houseSummary by viewModel.houseSummary.collectAsStateWithLifecycle()
-    val allPersons by viewModel.allPersons.collectAsStateWithLifecycle()
+    val totalPersonsCount by viewModel.totalPersonsCount.collectAsStateWithLifecycle()
+    val totalHouseholdsCount by viewModel.totalHouseholdsCount.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -56,7 +56,7 @@ fun DashboardScreen(
                     StatCard(
                         modifier = Modifier.weight(1f),
                         title = "ประชากรทั้งหมด",
-                        value = "${allPersons.size}",
+                        value = "$totalPersonsCount",
                         icon = Icons.Filled.Person,
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -64,7 +64,7 @@ fun DashboardScreen(
                     StatCard(
                         modifier = Modifier.weight(1f),
                         title = "ครัวเรือนทั้งหมด",
-                        value = "${houseSummary.size}",
+                        value = "$totalHouseholdsCount",
                         icon = Icons.Filled.Home,
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer

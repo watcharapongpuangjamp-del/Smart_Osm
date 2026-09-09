@@ -156,7 +156,7 @@ fun PersonFormScreen(
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             OutlinedTextField(
-                                value = birthDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) ?: "",
+                                value = com.example.utils.ValidationUtils.formatThaiDateDisplay(birthDate, false),
                                 onValueChange = {},
                                 label = { Text("วันเกิด") },
                                 readOnly = true,
@@ -207,8 +207,11 @@ fun PersonFormScreen(
                                 return@launch
                             }
                             
+                            // Normalize National ID
+                            val normalizedId = com.example.utils.ValidationUtils.normalizeNationalId(nationalId)
+                            
                             // Check for duplicates
-                            val existingPerson = viewModel.getPersonByNationalId(nationalId)
+                            val existingPerson = viewModel.getPersonByNationalId(normalizedId)
                             if (existingPerson != null && existingPerson.id != personId) {
                                 Toast.makeText(context, "เลขบัตรประชาชนนี้มีอยู่ในระบบแล้ว", Toast.LENGTH_SHORT).show()
                                 return@launch
@@ -218,10 +221,11 @@ fun PersonFormScreen(
                                 val person = Person(
                                     id = if (personId == -1L) 0 else personId,
                                     householdId = householdId,
-                                    nationalId = nationalId,
+                                    nationalId = normalizedId,
                                     fullName = fullName,
                                     gender = gender,
                                     birthDate = birthDate,
+                                    isBirthYearOnly = false, // Set false for manual UI entries
                                     houseStatus = houseStatus,
                                     personStatus = personStatus,
                                     dataStatus = dataStatus

@@ -24,11 +24,13 @@ import java.time.LocalDate
 data class Person(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
+    val personUuid: String = java.util.UUID.randomUUID().toString(),
     val householdId: Long,
     val nationalId: String,
     val fullName: String,
     val gender: Gender,
     val birthDate: LocalDate?,
+    val isBirthYearOnly: Boolean = false,
     val houseStatus: HouseholdRole,
     val personStatus: PersonStatus,
     val dataStatus: DataStatus = DataStatus.NEEDS_REVIEW

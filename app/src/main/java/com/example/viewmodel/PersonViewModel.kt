@@ -28,19 +28,22 @@ import com.example.data.HouseholdWithPersons
 import java.time.Period
 import com.example.utils.ValidationUtils
 
-data class HouseSummary(
-    val householdId: Long,
-    val houseNo: String,
-    val totalMembers: Int,
-    val males: Int,
-    val females: Int,
-    val owners: Int,
-    val residents: Int,
-    val latitude: Double?,
-    val longitude: Double?
-)
+import com.example.data.HouseSummary
 
-class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
+class PersonViewModel(
+    private val repository: PersonRepository,
+    private val excelImportUseCase: com.example.domain.ExcelImportUseCase
+) : ViewModel() {
+    
+    private val _importResult = kotlinx.coroutines.flow.MutableStateFlow<com.example.domain.ExcelImportResult?>(null)
+    val importResult: StateFlow<com.example.domain.ExcelImportResult?> = _importResult
+    
+    private val _isImporting = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val isImporting: StateFlow<Boolean> = _isImporting
+
+    fun clearImportResult() {
+        _importResult.value = null
+    }
     
     val allPersons: StateFlow<List<Person>> = repository.allPersons.stateIn(
         scope = viewModelScope,
@@ -52,6 +55,18 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
+    )
+
+    val totalPersonsCount: StateFlow<Int> = repository.totalPersonsCount.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+
+    val totalHouseholdsCount: StateFlow<Int> = repository.totalHouseholdsCount.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
     )
 
     fun insertHousehold(household: Household, onComplete: (Long) -> Unit) {
@@ -105,91 +120,29 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
         summary
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val houseSummary: StateFlow<List<HouseSummary>> = allHouseholdsWithPersons.map { list ->
-        list.map { item ->
-            val persons = item.persons
-            HouseSummary(
-                householdId = item.household.id,
-                houseNo = item.household.houseNo,
-                totalMembers = persons.size,
-                males = persons.count { it.gender == com.example.data.Gender.MALE },
-                females = persons.count { it.gender == com.example.data.Gender.FEMALE },
-                owners = persons.count { it.houseStatus == com.example.data.HouseholdRole.HEAD },
-                residents = persons.count { it.houseStatus == com.example.data.HouseholdRole.RESIDENT },
-                latitude = item.household.latitude,
-                longitude = item.household.longitude
-            )
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val houseSummary: StateFlow<List<HouseSummary>> = repository.houseSummary.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     fun getHistoryForPerson(personId: Long) = repository.getHistoryForPerson(personId)
 
     fun importExcelData(context: Context, uri: Uri) {
+        if (_isImporting.value) return
+        
         viewModelScope.launch(Dispatchers.IO) {
+            _isImporting.value = true
             var inputStream: java.io.InputStream? = null
             try {
                 inputStream = context.contentResolver.openInputStream(uri)
-                val workbook = WorkbookFactory.create(inputStream)
-                val sheet = workbook.getSheetAt(0)
-                
-                var currentHouseNo = ""
-                var currentHouseholdId = 0L
-                var importedCount = 0
-                
-                for (i in 4..sheet.lastRowNum) {
-                    val row = sheet.getRow(i) ?: continue
-                    
-                    val tempHouseNo = getCellValueAsString(row.getCell(0))
-                    if (tempHouseNo.isNotBlank()) {
-                        currentHouseNo = tempHouseNo
-                        
-                        // Check if household exists or create one
-                        var household = repository.getHouseholdByNo(currentHouseNo)
-                        if (household == null) {
-                            household = Household(houseNo = currentHouseNo)
-                            currentHouseholdId = repository.insertHousehold(household)
-                        } else {
-                            currentHouseholdId = household.id
-                        }
+                if (inputStream != null) {
+                    val result = excelImportUseCase(inputStream)
+                    _importResult.value = result
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "ไม่สามารถเปิดไฟล์ได้", Toast.LENGTH_LONG).show()
                     }
-                    
-                    val nationalId = getCellValueAsString(row.getCell(2))
-                    val fullName = getCellValueAsString(row.getCell(3))
-                    
-                    if (nationalId.isBlank() && fullName.isBlank()) continue
-                    
-                    val gender = com.example.data.Gender.fromString(getCellValueAsString(row.getCell(4)))
-                    val birthDate = parseDateCell(row.getCell(5))
-                    val houseStatusStr = getCellValueAsString(row.getCell(7))
-                    val houseStatus = if (houseStatusStr.isBlank()) com.example.data.HouseholdRole.RESIDENT else com.example.data.HouseholdRole.fromString(houseStatusStr)
-                    val personStatusStr = getCellValueAsString(row.getCell(8))
-                    val personStatus = if (personStatusStr.isBlank()) com.example.data.PersonStatus.ALIVE else com.example.data.PersonStatus.fromString(personStatusStr)
-                    val dataStatusStr = getCellValueAsString(row.getCell(10))
-                    val dataStatus = if (birthDate == null) com.example.data.DataStatus.NEEDS_REVIEW else if (dataStatusStr.isBlank()) com.example.data.DataStatus.NEEDS_REVIEW else com.example.data.DataStatus.fromString(dataStatusStr)
-                    
-                    val person = Person(
-                        householdId = currentHouseholdId,
-                        nationalId = nationalId,
-                        fullName = fullName,
-                        gender = gender,
-                        birthDate = birthDate,
-                        houseStatus = houseStatus,
-                        personStatus = personStatus,
-                        dataStatus = dataStatus
-                    )
-                    
-                    // Basic duplicate check for Excel imports
-                    if (repository.getPersonByNationalId(nationalId) == null) {
-                        repository.insert(person)
-                        importedCount++
-                    }
-                }
-                
-                workbook.close()
-                inputStream?.close()
-                
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "นำเข้าข้อมูลสำเร็จ $importedCount รายการ", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -198,63 +151,8 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
                 }
             } finally {
                 inputStream?.close()
+                _isImporting.value = false
             }
-        }
-    }
-
-    private fun getCellValueAsString(cell: Cell?): String {
-        if (cell == null) return ""
-        return try {
-            when (cell.cellType) {
-                CellType.STRING -> cell.stringCellValue.trim()
-                CellType.NUMERIC -> {
-                    if (DateUtil.isCellDateFormatted(cell)) {
-                        val date = cell.dateCellValue
-                        date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().toString()
-                    } else {
-                        BigDecimal(cell.numericCellValue).toPlainString()
-                    }
-                }
-                CellType.BOOLEAN -> cell.booleanCellValue.toString()
-                CellType.FORMULA -> {
-                    when (cell.cachedFormulaResultType) {
-                        CellType.STRING -> cell.richStringCellValue.string.trim()
-                        CellType.NUMERIC -> BigDecimal(cell.numericCellValue).toPlainString()
-                        else -> ""
-                    }
-                }
-                else -> ""
-            }
-        } catch (e: Exception) {
-            ""
-        }
-    }
-
-    private fun parseDateCell(cell: Cell?): LocalDate? {
-        if (cell == null) return null
-        return try {
-            if (cell.cellType == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
-                val date = cell.dateCellValue
-                date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-            } else {
-                val str = getCellValueAsString(cell)
-                if (str.isNotBlank()) {
-                    try {
-                        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                        LocalDate.parse(str, formatter)
-                    } catch (e: Exception) {
-                        try {
-                            LocalDate.parse(str) // fallback yyyy-MM-dd
-                        } catch (e2: Exception) {
-                            null
-                        }
-                    }
-                } else {
-                    null
-                }
-            }
-        } catch (e: Exception) {
-            null
         }
     }
 }

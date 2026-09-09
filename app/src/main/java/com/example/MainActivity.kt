@@ -27,14 +27,21 @@ class MainActivity : ComponentActivity() {
         val db = Room.databaseBuilder(
             applicationContext,
             AppDatabase::class.java, "person_db"
-        ).addMigrations(AppDatabase.MIGRATION_4_5).build()
-        val repository = PersonRepository(db.personDao(), db.householdDao(), db.personHistoryDao())
+        ).addMigrations(
+            AppDatabase.MIGRATION_1_2,
+            AppDatabase.MIGRATION_2_3,
+            AppDatabase.MIGRATION_3_4,
+            AppDatabase.MIGRATION_4_5,
+            AppDatabase.MIGRATION_5_6
+        ).build()
+        val repository = PersonRepository(db, db.personDao(), db.householdDao(), db.personHistoryDao())
+        val excelImportUseCase = com.example.domain.ExcelImportUseCase(db)
 
         val factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PersonViewModel::class.java)) {
                     @Suppress("UNCHECKED_CAST")
-                    return PersonViewModel(repository) as T
+                    return PersonViewModel(repository, excelImportUseCase) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }
