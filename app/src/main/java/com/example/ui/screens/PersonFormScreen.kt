@@ -1,6 +1,6 @@
 package com.example.ui.screens
 
-import android.Manifest
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -8,7 +8,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,10 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
-import com.google.android.gms.location.LocationServices
 import com.example.data.Person
 import com.example.viewmodel.PersonViewModel
 import kotlinx.coroutines.launch
@@ -29,18 +24,18 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersonFormScreen(
     viewModel: PersonViewModel,
     personId: Long,
-    initialHouseNo: String,
+    householdId: Long,
     onNavigateBack: () -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     var isLoading by remember { mutableStateOf(personId != -1L) }
 
-    var houseNo by remember { mutableStateOf(initialHouseNo) }
     var nationalId by remember { mutableStateOf("") }
     var fullName by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("ชาย") }
@@ -48,8 +43,6 @@ fun PersonFormScreen(
     var houseStatus by remember { mutableStateOf("เจ้าบ้าน") }
     var personStatus by remember { mutableStateOf("มีชีวิต") }
     var dataStatus by remember { mutableStateOf("ยืนยันแล้ว") }
-    var latitude by remember { mutableStateOf<Double?>(null) }
-    var longitude by remember { mutableStateOf<Double?>(null) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
@@ -60,7 +53,6 @@ fun PersonFormScreen(
         if (personId != -1L) {
             val person = viewModel.getPersonById(personId)
             person?.let {
-                houseNo = it.houseNo
                 nationalId = it.nationalId
                 fullName = it.fullName
                 gender = it.gender
@@ -68,8 +60,6 @@ fun PersonFormScreen(
                 houseStatus = it.houseStatus
                 personStatus = it.personStatus
                 dataStatus = it.dataStatus
-                latitude = it.latitude
-                longitude = it.longitude
             }
             isLoading = false
         }
@@ -126,21 +116,15 @@ fun PersonFormScreen(
             ) {
                 // Section 1: General Info
                 FormSectionCard(title = "ข้อมูลพื้นฐาน") {
-                    OutlinedTextField(
-                        value = houseNo,
-                        onValueChange = { houseNo = it },
-                        label = { Text("บ้านเลขที่") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
                     var nationalIdError by remember { mutableStateOf(false) }
+                    var nationalIdErrorMessage by remember { mutableStateOf("") }
+                    
                     OutlinedTextField(
                         value = nationalId,
                         onValueChange = {
                             if (it.length <= 13 && it.all { char -> char.isDigit() }) {
                                 nationalId = it
-                                nationalIdError = it.length != 13
+                                nationalIdError = false
                             }
                         },
                         label = { Text("เลขบัตรประชาชน (13 หลัก)") },
@@ -150,7 +134,7 @@ fun PersonFormScreen(
                         singleLine = true
                     )
                     if (nationalIdError) {
-                        Text("กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        Text(nationalIdErrorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
 
                     OutlinedTextField(
@@ -211,93 +195,54 @@ fun PersonFormScreen(
                     )
                 }
 
-                // Section 3: Location
-                FormSectionCard(title = "พิกัดสถานที่ (GPS)") {
-                    val context = LocalContext.current
-                    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-                    val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
-
-                    Text(
-                        text = "ละติจูด: ${latitude ?: "-"} \nลองจิจูด: ${longitude ?: "-"}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = {
-                            if (locationPermissionState.status.isGranted) {
-                                try {
-                                    fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
-                                        loc?.let {
-                                            latitude = it.latitude
-                                            longitude = it.longitude
-                                        }
-                                    }
-                                } catch (e: SecurityException) {
-                                    // Handle exception
-                                }
-                            } else {
-                                locationPermissionState.launchPermissionRequest()
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Icon(Icons.Filled.LocationOn, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("ดึงพิกัดตำแหน่งปัจจุบัน")
-                    }
-                }
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
                     onClick = {
-                        if (nationalId.length == 13 && houseNo.isNotBlank() && fullName.isNotBlank()) {
-                            val person = Person(
-                                id = if (personId == -1L) 0 else personId,
-                                houseNo = houseNo,
-                                nationalId = nationalId,
-                                fullName = fullName,
-                                gender = gender,
-                                birthDate = birthDate,
-                                houseStatus = houseStatus,
-                                personStatus = personStatus,
-                                dataStatus = dataStatus,
-                                latitude = latitude,
-                                longitude = longitude
-                            )
-                            coroutineScope.launch {
+                        coroutineScope.launch {
+                            if (!viewModel.validateThaiNationalId(nationalId)) {
+                                // Have to mutate a local state but since nationalIdError is inside the composable block, 
+                                // it's better to just show toast for simplicity, but I can't access it here easily.
+                                Toast.makeText(context, "เลขบัตรประชาชนไม่ถูกต้องตามหลักการคำนวณ", Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+                            
+                            // Check for duplicates
+                            val existingPerson = viewModel.getPersonByNationalId(nationalId)
+                            if (existingPerson != null && existingPerson.id != personId) {
+                                Toast.makeText(context, "เลขบัตรประชาชนนี้มีอยู่ในระบบแล้ว", Toast.LENGTH_SHORT).show()
+                                return@launch
+                            }
+
+                            if (fullName.isNotBlank() && householdId != -1L) {
+                                val person = Person(
+                                    id = if (personId == -1L) 0 else personId,
+                                    householdId = householdId,
+                                    nationalId = nationalId,
+                                    fullName = fullName,
+                                    gender = gender,
+                                    birthDate = birthDate,
+                                    houseStatus = houseStatus,
+                                    personStatus = personStatus,
+                                    dataStatus = dataStatus
+                                )
                                 if (personId == -1L) {
                                     viewModel.insert(person)
                                 } else {
                                     viewModel.update(person)
                                 }
                                 onNavigateBack()
+                            } else {
+                                Toast.makeText(context, "กรุณากรอกข้อมูลให้ครบถ้วน", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(56.dp),
-                    enabled = nationalId.length == 13 && houseNo.isNotBlank() && fullName.isNotBlank()
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("บันทึกข้อมูล", style = MaterialTheme.typography.titleMedium)
                 }
-
-                Spacer(modifier = Modifier.height(32.dp))
             }
-        }
-    }
-}
-
-@Composable
-fun FormSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Divider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            content()
         }
     }
 }
@@ -314,17 +259,18 @@ fun DropdownMenuField(
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = Modifier.fillMaxWidth()
+        onExpandedChange = { expanded = !expanded }
     ) {
         OutlinedTextField(
             value = selectedOption,
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-            modifier = Modifier.menuAnchor().fillMaxWidth()
+            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true).fillMaxWidth()
         )
         ExposedDropdownMenu(
             expanded = expanded,
@@ -339,6 +285,24 @@ fun DropdownMenuField(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun FormSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            content()
         }
     }
 }

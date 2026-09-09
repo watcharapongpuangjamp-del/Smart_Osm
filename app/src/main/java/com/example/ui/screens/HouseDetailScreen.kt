@@ -28,14 +28,13 @@ import com.example.viewmodel.PersonViewModel
 @Composable
 fun HouseDetailScreen(
     viewModel: PersonViewModel,
-    houseNo: String,
+    householdId: Long,
     onNavigateBack: () -> Unit,
     onAddMemberClick: () -> Unit,
     onEditMemberClick: (Long) -> Unit
 ) {
-    val persons by viewModel.allPersons.collectAsStateWithLifecycle()
-    val houseMembers = persons.filter { it.houseNo == houseNo }
-
+    val householdWithPersons by viewModel.getHouseholdWithPersonsById(householdId).collectAsStateWithLifecycle(initialValue = null)
+    
     var personToDelete by remember { mutableStateOf<Person?>(null) }
 
     if (personToDelete != null) {
@@ -48,7 +47,6 @@ fun HouseDetailScreen(
                     onClick = {
                         personToDelete?.let { viewModel.delete(it) }
                         personToDelete = null
-                        // If house is empty after deletion, might want to navigate back, but relying on UI update is fine.
                     }
                 ) { Text("ลบ", color = MaterialTheme.colorScheme.error) }
             },
@@ -61,7 +59,7 @@ fun HouseDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("รายละเอียดบ้านเลขที่ $houseNo") },
+                title = { Text("รายละเอียดบ้านเลขที่ ${householdWithPersons?.household?.houseNo ?: ""}") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ")
@@ -84,6 +82,16 @@ fun HouseDetailScreen(
             }
         }
     ) { padding ->
+        if (householdWithPersons == null) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+        
+        val houseMembers = householdWithPersons!!.persons
+        val household = householdWithPersons!!.household
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -110,6 +118,12 @@ fun HouseDetailScreen(
                         }
                     }
                 }
+                
+                if (household.latitude != null && household.longitude != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("พิกัด GPS: ${household.latitude}, ${household.longitude}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("รายชื่อสมาชิกครัวเรือน", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }

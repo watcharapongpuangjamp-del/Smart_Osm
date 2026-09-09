@@ -9,9 +9,27 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.math.BigDecimal
+import android.content.Context
+import android.net.Uri
+import android.widget.Toast
+import org.apache.poi.ss.usermodel.WorkbookFactory
+import org.apache.poi.ss.usermodel.CellType
+import org.apache.poi.ss.usermodel.DateUtil
+import org.apache.poi.ss.usermodel.Cell
+
+import com.example.data.Household
+import com.example.data.HouseholdWithPersons
+import java.time.Period
+import com.example.utils.ValidationUtils
 
 data class HouseSummary(
+    val householdId: Long,
     val houseNo: String,
     val totalMembers: Int,
     val males: Int,
@@ -29,18 +47,39 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+    
+    val allHouseholdsWithPersons: StateFlow<List<HouseholdWithPersons>> = repository.allHouseholdsWithPersons.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun insertHousehold(household: Household, onComplete: (Long) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val id = repository.insertHousehold(household)
+            withContext(Dispatchers.Main) {
+                onComplete(id)
+            }
+        }
+    }
+    fun updateHousehold(household: Household) = viewModelScope.launch { repository.updateHousehold(household) }
+    fun deleteHousehold(household: Household) = viewModelScope.launch { repository.deleteHousehold(household) }
+    
+    suspend fun getHouseholdById(id: Long): Household? = repository.getHouseholdById(id)
+    fun getHouseholdWithPersonsById(id: Long) = repository.getHouseholdWithPersonsById(id)
 
     fun insert(person: Person) = viewModelScope.launch { repository.insert(person) }
     fun update(person: Person) = viewModelScope.launch { repository.update(person) }
     fun delete(person: Person) = viewModelScope.launch { repository.delete(person) }
     
     suspend fun getPersonById(id: Long): Person? = repository.getPersonById(id)
+    suspend fun getPersonByNationalId(nationalId: String): Person? = repository.getPersonByNationalId(nationalId)
+    
+    fun validateThaiNationalId(id: String): Boolean = ValidationUtils.isValidThaiNationalId(id)
 
     fun calculateAge(birthDate: LocalDate, personStatus: String): Int? {
         if (personStatus == "เสียชีวิต") return null
-        val currentYear = LocalDate.now().year
-        val birthYear = birthDate.year
-        return currentYear - birthYear
+        return Period.between(birthDate, LocalDate.now()).years
     }
 
     fun getAgeGroup(age: Int?): String {
@@ -66,18 +105,151 @@ class PersonViewModel(private val repository: PersonRepository) : ViewModel() {
         summary
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    val houseSummary: StateFlow<List<HouseSummary>> = allPersons.map { persons ->
-        persons.groupBy { it.houseNo }.map { (houseNo, list) ->
+    val houseSummary: StateFlow<List<HouseSummary>> = allHouseholdsWithPersons.map { list ->
+        list.map { item ->
+            val persons = item.persons
             HouseSummary(
-                houseNo = houseNo,
-                totalMembers = list.size,
-                males = list.count { it.gender == "ชาย" },
-                females = list.count { it.gender == "หญิง" },
-                owners = list.count { it.houseStatus == "เจ้าบ้าน" },
-                residents = list.count { it.houseStatus == "ผู้อาศัย" },
-                latitude = list.firstOrNull { it.latitude != null }?.latitude,
-                longitude = list.firstOrNull { it.longitude != null }?.longitude
+                householdId = item.household.id,
+                houseNo = item.household.houseNo,
+                totalMembers = persons.size,
+                males = persons.count { it.gender == "ชาย" },
+                females = persons.count { it.gender == "หญิง" },
+                owners = persons.count { it.houseStatus == "เจ้าบ้าน" },
+                residents = persons.count { it.houseStatus == "ผู้อาศัย" },
+                latitude = item.household.latitude,
+                longitude = item.household.longitude
             )
-        }.sortedBy { it.houseNo }
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun importExcelData(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            var inputStream: java.io.InputStream? = null
+            try {
+                inputStream = context.contentResolver.openInputStream(uri)
+                val workbook = WorkbookFactory.create(inputStream)
+                val sheet = workbook.getSheetAt(0)
+                
+                var currentHouseNo = ""
+                var currentHouseholdId = 0L
+                var importedCount = 0
+                
+                for (i in 4..sheet.lastRowNum) {
+                    val row = sheet.getRow(i) ?: continue
+                    
+                    val tempHouseNo = getCellValueAsString(row.getCell(0))
+                    if (tempHouseNo.isNotBlank()) {
+                        currentHouseNo = tempHouseNo
+                        
+                        // Check if household exists or create one
+                        var household = repository.getHouseholdByNo(currentHouseNo)
+                        if (household == null) {
+                            household = Household(houseNo = currentHouseNo)
+                            currentHouseholdId = repository.insertHousehold(household)
+                        } else {
+                            currentHouseholdId = household.id
+                        }
+                    }
+                    
+                    val nationalId = getCellValueAsString(row.getCell(2))
+                    val fullName = getCellValueAsString(row.getCell(3))
+                    
+                    if (nationalId.isBlank() && fullName.isBlank()) continue
+                    
+                    val gender = getCellValueAsString(row.getCell(4))
+                    val birthDate = parseDateCell(row.getCell(5))
+                    val houseStatus = getCellValueAsString(row.getCell(7)).ifBlank { "ผู้อาศัย" }
+                    val personStatus = getCellValueAsString(row.getCell(8)).ifBlank { "มีชีวิต" }
+                    val dataStatus = getCellValueAsString(row.getCell(10)).ifBlank { "ต้องตรวจสอบ" }
+                    
+                    val person = Person(
+                        householdId = currentHouseholdId,
+                        nationalId = nationalId,
+                        fullName = fullName,
+                        gender = gender,
+                        birthDate = birthDate,
+                        houseStatus = houseStatus,
+                        personStatus = personStatus,
+                        dataStatus = dataStatus
+                    )
+                    
+                    // Basic duplicate check for Excel imports
+                    if (repository.getPersonByNationalId(nationalId) == null) {
+                        repository.insert(person)
+                        importedCount++
+                    }
+                }
+                
+                workbook.close()
+                inputStream?.close()
+                
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "นำเข้าข้อมูลสำเร็จ $importedCount รายการ", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "เกิดข้อผิดพลาด: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                inputStream?.close()
+            }
+        }
+    }
+
+    private fun getCellValueAsString(cell: Cell?): String {
+        if (cell == null) return ""
+        return try {
+            when (cell.cellType) {
+                CellType.STRING -> cell.stringCellValue.trim()
+                CellType.NUMERIC -> {
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        val date = cell.dateCellValue
+                        date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate().toString()
+                    } else {
+                        BigDecimal(cell.numericCellValue).toPlainString()
+                    }
+                }
+                CellType.BOOLEAN -> cell.booleanCellValue.toString()
+                CellType.FORMULA -> {
+                    when (cell.cachedFormulaResultType) {
+                        CellType.STRING -> cell.richStringCellValue.string.trim()
+                        CellType.NUMERIC -> BigDecimal(cell.numericCellValue).toPlainString()
+                        else -> ""
+                    }
+                }
+                else -> ""
+            }
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    private fun parseDateCell(cell: Cell?): LocalDate {
+        if (cell == null) return LocalDate.now()
+        return try {
+            if (cell.cellType == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+                val date = cell.dateCellValue
+                date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+            } else {
+                val str = getCellValueAsString(cell)
+                if (str.isNotBlank()) {
+                    try {
+                        val formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                        LocalDate.parse(str, formatter)
+                    } catch (e: Exception) {
+                        try {
+                            LocalDate.parse(str) // fallback yyyy-MM-dd
+                        } catch (e2: Exception) {
+                            LocalDate.now()
+                        }
+                    }
+                } else {
+                    LocalDate.now()
+                }
+            }
+        } catch (e: Exception) {
+            LocalDate.now()
+        }
+    }
 }

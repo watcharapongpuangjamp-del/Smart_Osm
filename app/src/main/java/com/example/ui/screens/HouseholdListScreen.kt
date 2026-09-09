@@ -19,14 +19,27 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.viewmodel.PersonViewModel
 
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.material.icons.filled.UploadFile
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HouseholdListScreen(
     viewModel: PersonViewModel,
-    onHouseClick: (String) -> Unit,
+    onHouseClick: (Long) -> Unit,
     onAddHouseClick: () -> Unit
 ) {
     val houseSummary by viewModel.houseSummary.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.importExcelData(context, it) }
+    }
 
     Scaffold(
         topBar = {
@@ -34,8 +47,14 @@ fun HouseholdListScreen(
                 title = { Text("ทะเบียนครัวเรือน") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                actions = {
+                    IconButton(onClick = { importLauncher.launch("*/*") }) {
+                        Icon(Icons.Filled.UploadFile, contentDescription = "นำเข้าข้อมูลจาก Excel")
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -67,9 +86,9 @@ fun HouseholdListScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 88.dp)
             ) {
-                items(houseSummary, key = { it.houseNo }) { summary ->
+                items(houseSummary, key = { it.householdId }) { summary ->
                     Card(
-                        onClick = { onHouseClick(summary.houseNo) },
+                        onClick = { onHouseClick(summary.householdId) },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),

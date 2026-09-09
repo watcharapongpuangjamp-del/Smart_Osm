@@ -24,7 +24,7 @@ import com.google.maps.android.compose.rememberCameraPositionState
 @Composable
 fun MapScreen(
     viewModel: PersonViewModel,
-    onHouseClick: (String) -> Unit
+    onHouseClick: (Long) -> Unit
 ) {
     val houseSummary by viewModel.houseSummary.collectAsStateWithLifecycle()
 
@@ -61,7 +61,7 @@ fun MapScreen(
                     state = MarkerState(position = LatLng(house.latitude!!, house.longitude!!)),
                     title = "บ้านเลขที่ ${house.houseNo}",
                     onInfoWindowClick = {
-                        onHouseClick(house.houseNo)
+                        onHouseClick(house.householdId)
                     }
                 ) { marker ->
                     Column(

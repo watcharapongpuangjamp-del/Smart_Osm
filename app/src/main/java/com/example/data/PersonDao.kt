@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PersonDao {
-    @Query("SELECT * FROM persons ORDER BY houseNo ASC, id ASC")
+    @Query("SELECT * FROM persons ORDER BY id ASC")
     fun getAllPersons(): Flow<List<Person>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -22,6 +22,12 @@ interface PersonDao {
     @Delete
     suspend fun deletePerson(person: Person)
 
-    @Query("SELECT * FROM persons WHERE id = :id")
+    @Query("SELECT * FROM persons WHERE id = :id LIMIT 1")
     suspend fun getPersonById(id: Long): Person?
+    
+    @Query("SELECT * FROM persons WHERE nationalId = :nationalId LIMIT 1")
+    suspend fun getPersonByNationalId(nationalId: String): Person?
+    
+    @Query("SELECT * FROM persons WHERE householdId = :householdId")
+    fun getPersonsByHouseholdId(householdId: Long): Flow<List<Person>>
 }
