@@ -117,14 +117,16 @@ fun HouseholdFormScreen(
             if (latitude != null && longitude != null) {
                 Text("Lat: $latitude\nLon: $longitude", style = MaterialTheme.typography.bodyMedium)
                 if (locationAccuracy != null) {
-                    Text("ความแม่นยำ: ${locationAccuracy}m", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val acc = locationAccuracy!!
+                    val color = if (acc <= 20f) androidx.compose.ui.graphics.Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                    Text("ความแม่นยำ: ${acc} เมตร", style = MaterialTheme.typography.bodySmall, color = color)
                 }
                 if (locationProvider != null) {
-                    Text("Provider: $locationProvider", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("ข้อมูลจาก: $locationProvider", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (locationCapturedAt != null) {
-                    val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(locationCapturedAt!!))
-                    Text("อัปเดตล่าสุด: $dateStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val dateStr = java.text.SimpleDateFormat("d MMM yyyy HH:mm", java.util.Locale("th", "TH")).format(java.util.Date(locationCapturedAt!!))
+                    Text("พิกัดบันทึกเมื่อ: $dateStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 Text("ยังไม่มีพิกัด", style = MaterialTheme.typography.bodyMedium)
@@ -135,15 +137,29 @@ fun HouseholdFormScreen(
                     if (locationPermissionState.status.isGranted) {
                         coroutineScope.launch {
                             try {
+                                Toast.makeText(context, "กำลังค้นหาตำแหน่งปัจจุบัน...", Toast.LENGTH_SHORT).show()
                                 @SuppressLint("MissingPermission")
-                                val location = fusedLocationClient.lastLocation.await()
+                                val locationRequest = com.google.android.gms.location.CurrentLocationRequest.Builder()
+                                    .setPriority(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY)
+                                    .build()
+                                val location = fusedLocationClient.getCurrentLocation(locationRequest, null).await()
                                 if (location != null) {
                                     latitude = location.latitude
                                     longitude = location.longitude
                                     locationAccuracy = if (location.hasAccuracy()) location.accuracy else null
                                     locationCapturedAt = location.time
                                     locationProvider = location.provider
-                                    Toast.makeText(context, "ดึงพิกัดสำเร็จ", Toast.LENGTH_SHORT).show()
+                                    
+                                    val acc = locationAccuracy
+                                    if (acc != null) {
+                                        if (acc <= 20f) {
+                                            Toast.makeText(context, "ดึงพิกัดสำเร็จ (ความแม่นยำสูง)", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "พิกัดอาจคลาดเคลื่อน (ความแม่นยำ ${acc}m)", Toast.LENGTH_LONG).show()
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "ดึงพิกัดสำเร็จ (ไม่ทราบความแม่นยำ)", Toast.LENGTH_SHORT).show()
+                                    }
                                 } else {
                                     Toast.makeText(context, "ไม่สามารถหาตำแหน่งได้", Toast.LENGTH_SHORT).show()
                                 }

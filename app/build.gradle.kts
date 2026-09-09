@@ -139,6 +139,7 @@ dependencies {
   implementation(libs.okhttp)
   implementation(libs.play.services.location)
   implementation(libs.maps.compose)
+  implementation(libs.maps.compose.utils)
   implementation(libs.play.services.maps)
   implementation(libs.retrofit)
   implementation(libs.poi)

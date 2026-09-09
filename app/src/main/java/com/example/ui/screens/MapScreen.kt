@@ -8,17 +8,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.viewmodel.PersonViewModel
+import com.example.data.HouseSummary
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MarkerInfoWindowContent
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.clustering.ClusterItem
+import com.google.maps.android.compose.clustering.Clustering
+
+class HouseholdClusterItem(
+    val house: HouseSummary
+) : ClusterItem {
+    override fun getPosition(): LatLng = LatLng(house.latitude!!, house.longitude!!)
+    override fun getTitle(): String = "บ้านเลขที่ ${house.houseNo}"
+    override fun getSnippet(): String = "จำนวนสมาชิก: ${house.totalMembers} คน"
+    override fun getZIndex(): Float? = null
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,35 +63,27 @@ fun MapScreen(
             )
         }
     ) { padding ->
+        val items = remember(houseSummary) {
+            houseSummary
+                .filter { it.latitude != null && it.longitude != null }
+                .map { HouseholdClusterItem(it) }
+        }
+
         GoogleMap(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
             cameraPositionState = cameraPositionState
         ) {
-            houseSummary.filter { it.latitude != null && it.longitude != null }.forEach { house ->
-                MarkerInfoWindowContent(
-                    state = MarkerState(position = LatLng(house.latitude!!, house.longitude!!)),
-                    title = "บ้านเลขที่ ${house.houseNo}",
-                    onInfoWindowClick = {
-                        onHouseClick(house.householdId)
-                    }
-                ) { marker ->
-                    Column(
-                        modifier = Modifier.padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("บ้านเลขที่: ${house.houseNo}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Text("จำนวนสมาชิก: ${house.totalMembers} คน", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "แตะเพื่อดูรายละเอียด >",
-                            color = MaterialTheme.colorScheme.secondary,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
+            Clustering(
+                items = items,
+                onClusterItemClick = { item ->
+                    false // Return false to show info window
+                },
+                onClusterItemInfoWindowClick = { item ->
+                    onHouseClick(item.house.householdId)
                 }
-            }
+            )
         }
     }
 }
