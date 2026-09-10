@@ -24,6 +24,9 @@ interface HouseholdDao {
     @Query("SELECT * FROM households ORDER BY houseNo ASC")
     fun getHouseholdsWithPersons(): Flow<List<HouseholdWithPersons>>
 
+    @Query("SELECT * FROM households ORDER BY houseNo ASC")
+    suspend fun getAllHouseholds(): List<Household>
+
     @Query("SELECT COUNT(*) FROM households")
     fun getTotalHouseholdsCount(): Flow<Int>
 

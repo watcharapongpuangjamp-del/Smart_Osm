@@ -155,4 +155,80 @@ class PersonViewModel(
             }
         }
     }
+
+    fun exportExcelData(context: Context, uri: Uri, onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val workbook = org.apache.poi.xssf.usermodel.XSSFWorkbook()
+                
+                // Sheet 1: Persons
+                val sheetPerson = workbook.createSheet("รายชื่อประชากร")
+                val pHeader = sheetPerson.createRow(0)
+                pHeader.createCell(0).setCellValue("รหัส")
+                pHeader.createCell(1).setCellValue("รหัสครัวเรือน")
+                pHeader.createCell(2).setCellValue("เลขบัตรประชาชน")
+                pHeader.createCell(3).setCellValue("ชื่อ-นามสกุล")
+                pHeader.createCell(4).setCellValue("เพศ")
+                pHeader.createCell(5).setCellValue("วันเกิด")
+                pHeader.createCell(6).setCellValue("สถานะครัวเรือน")
+                pHeader.createCell(7).setCellValue("สถานะบุคคล")
+                pHeader.createCell(8).setCellValue("สถานะข้อมูล")
+
+                val persons = repository.getAllPersonsList()
+                persons.forEachIndexed { index, p ->
+                    val row = sheetPerson.createRow(index + 1)
+                    row.createCell(0).setCellValue(p.id.toDouble())
+                    row.createCell(1).setCellValue(p.householdId.toDouble())
+                    row.createCell(2).setCellValue(p.nationalId)
+                    row.createCell(3).setCellValue(p.fullName)
+                    row.createCell(4).setCellValue(p.gender.name)
+                    row.createCell(5).setCellValue(p.birthDate?.toString() ?: "")
+                    row.createCell(6).setCellValue(p.houseStatus.name)
+                    row.createCell(7).setCellValue(p.personStatus.name)
+                    row.createCell(8).setCellValue(p.dataStatus.name)
+                }
+
+                // Sheet 2: Households
+                val sheetHouse = workbook.createSheet("ข้อมูลครัวเรือน")
+                val hHeader = sheetHouse.createRow(0)
+                hHeader.createCell(0).setCellValue("รหัสครัวเรือน")
+                hHeader.createCell(1).setCellValue("บ้านเลขที่")
+                hHeader.createCell(2).setCellValue("หมู่ที่")
+                hHeader.createCell(3).setCellValue("ตำบล")
+                hHeader.createCell(4).setCellValue("อำเภอ")
+                hHeader.createCell(5).setCellValue("จังหวัด")
+                hHeader.createCell(6).setCellValue("ละติจูด")
+                hHeader.createCell(7).setCellValue("ลองจิจูด")
+                hHeader.createCell(8).setCellValue("สถานะข้อมูล")
+
+                val households = repository.getAllHouseholds()
+                households.forEachIndexed { index, h ->
+                    val row = sheetHouse.createRow(index + 1)
+                    row.createCell(0).setCellValue(h.id.toDouble())
+                    row.createCell(1).setCellValue(h.houseNo)
+                    row.createCell(2).setCellValue(h.villageNo)
+                    row.createCell(3).setCellValue(h.subdistrict)
+                    row.createCell(4).setCellValue(h.district)
+                    row.createCell(5).setCellValue(h.province)
+                    row.createCell(6).setCellValue(h.latitude ?: 0.0)
+                    row.createCell(7).setCellValue(h.longitude ?: 0.0)
+                    row.createCell(8).setCellValue(h.dataStatus.name)
+                }
+
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    workbook.write(outputStream)
+                }
+                workbook.close()
+
+                withContext(Dispatchers.Main) {
+                    onComplete(true, "ส่งออกข้อมูลสำเร็จ")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    onComplete(false, "เกิดข้อผิดพลาด: ${e.message}")
+                }
+            }
+        }
+    }
 }

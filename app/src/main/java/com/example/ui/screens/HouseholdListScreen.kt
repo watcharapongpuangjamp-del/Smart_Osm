@@ -23,7 +23,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +44,16 @@ fun HouseholdListScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { viewModel.importExcelData(context, it) }
+    }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.exportExcelData(context, it) { success, message ->
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     if (importResult != null) {
@@ -96,6 +108,9 @@ fun HouseholdListScreen(
                     actionIconContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 actions = {
+                    IconButton(onClick = { exportLauncher.launch("population_report.xlsx") }) {
+                        Icon(Icons.Filled.Download, contentDescription = "ส่งออกข้อมูล Excel")
+                    }
                     IconButton(onClick = { importLauncher.launch("*/*") }) {
                         Icon(Icons.Filled.UploadFile, contentDescription = "นำเข้าข้อมูลจาก Excel")
                     }

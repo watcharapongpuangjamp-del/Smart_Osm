@@ -120,4 +120,7 @@ class PersonRepository(
     fun getHistoryForPerson(personId: Long): Flow<List<PersonHistory>> {
         return personHistoryDao.getHistoryForPerson(personId)
     }
+
+    suspend fun getAllHouseholds(): List<Household> = householdDao.getAllHouseholds()
+    suspend fun getAllPersonsList(): List<Person> = personDao.getAllPersonsList()
 }

@@ -13,6 +13,9 @@ interface PersonDao {
     @Query("SELECT * FROM persons ORDER BY id ASC")
     fun getAllPersons(): Flow<List<Person>>
 
+    @Query("SELECT * FROM persons ORDER BY id ASC")
+    suspend fun getAllPersonsList(): List<Person>
+
     @Query("SELECT COUNT(*) FROM persons")
     fun getTotalPersonsCount(): Flow<Int>
 
