@@ -2,9 +2,22 @@ package com.example.data
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.squareup.moshi.FromJson
+import com.squareup.moshi.ToJson
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 import androidx.room.withTransaction
+
+class LocalDateAdapter {
+    @ToJson
+    fun toJson(value: LocalDate?): String? = value?.toString()
+
+    @FromJson
+    fun fromJson(value: String?): LocalDate? = value?.let {
+        try { LocalDate.parse(it) } catch (e: Exception) { null }
+    }
+}
 
 class PersonRepository(
     private val db: AppDatabase,
@@ -12,7 +25,10 @@ class PersonRepository(
     private val householdDao: HouseholdDao,
     private val personHistoryDao: PersonHistoryDao
 ) {
-    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .add(LocalDateAdapter())
+        .build()
     private val personAdapter = moshi.adapter(Person::class.java)
 
     val allPersons: Flow<List<Person>> = personDao.getAllPersons()
