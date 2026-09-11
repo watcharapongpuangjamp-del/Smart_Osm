@@ -43,6 +43,7 @@ fun PersonFormScreen(
     var houseStatus by remember { mutableStateOf(com.example.data.HouseholdRole.HEAD) }
     var personStatus by remember { mutableStateOf(com.example.data.PersonStatus.ALIVE) }
     var dataStatus by remember { mutableStateOf(com.example.data.DataStatus.VERIFIED) }
+    var isBirthYearOnly by remember { mutableStateOf(false) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
@@ -60,6 +61,7 @@ fun PersonFormScreen(
                 houseStatus = it.houseStatus
                 personStatus = it.personStatus
                 dataStatus = it.dataStatus
+                isBirthYearOnly = it.isBirthYearOnly
             }
             isLoading = false
         }
