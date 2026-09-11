@@ -6,12 +6,16 @@ import android.preference.PreferenceManager
 import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.viewmodel.PersonViewModel
@@ -49,10 +53,17 @@ fun MapScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("แผนที่ครัวเรือน") },
+                title = {
+                    Text(
+                        "แผนที่พิกัดครัวเรือน",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = androidx.compose.ui.graphics.Color.White
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = com.example.ui.theme.EmeraldPrimary,
+                    titleContentColor = androidx.compose.ui.graphics.Color.White
                 )
             )
         },
@@ -84,8 +95,10 @@ fun MapScreen(
                         locationPermissionState.launchPermissionRequest()
                     }
                 },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = com.example.ui.theme.EmeraldPrimary,
+                contentColor = androidx.compose.ui.graphics.Color.White,
+                shape = CircleShape,
+                modifier = Modifier.shadow(8.dp, CircleShape, spotColor = com.example.ui.theme.CardShadowTint)
             ) {
                 Icon(Icons.Filled.MyLocation, contentDescription = "ตำแหน่งปัจจุบันของฉัน")
             }

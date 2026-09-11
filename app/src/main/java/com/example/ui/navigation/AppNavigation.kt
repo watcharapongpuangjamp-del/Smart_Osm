@@ -10,7 +10,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -48,12 +51,29 @@ fun AppNavigation(
 
             // Show bottom bar only on main tabs
             if (currentRoute in items.map { it.route }) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = com.example.ui.theme.SurfaceLight,
+                    tonalElevation = 8.dp,
+                    modifier = Modifier.shadow(12.dp, spotColor = com.example.ui.theme.CardShadowTint)
+                ) {
                     items.forEach { item ->
+                        val selected = currentRoute == item.route
                         NavigationBarItem(
                             icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title) },
-                            selected = currentRoute == item.route,
+                            label = { 
+                                Text(
+                                    item.title, 
+                                    fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal
+                                ) 
+                            },
+                            selected = selected,
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = com.example.ui.theme.EmeraldPrimary,
+                                selectedTextColor = com.example.ui.theme.EmeraldPrimary,
+                                indicatorColor = com.example.ui.theme.StatusVerifiedBg,
+                                unselectedIconColor = com.example.ui.theme.OnSurfaceTertiary,
+                                unselectedTextColor = com.example.ui.theme.OnSurfaceTertiary
+                            ),
                             onClick = {
                                 navController.navigate(item.route) {
                                     popUpTo(navController.graph.startDestinationId) { saveState = true }

@@ -3,17 +3,29 @@ package com.example.ui.screens
 import android.Manifest
 import android.annotation.SuppressLint
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.Household
+import com.example.ui.theme.*
 import com.example.viewmodel.PersonViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -58,14 +70,26 @@ fun HouseholdFormScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(if (householdId == -1L) "เพิ่มบ้านใหม่" else "แก้ไขบ้าน") },
+                title = {
+                    Text(
+                        if (householdId == -1L) "เพิ่มครัวเรือนใหม่" else "แก้ไขข้อมูลครัวเรือน",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = EmeraldPrimary,
+                    titleContentColor = Color.White
+                )
             )
         },
         floatingActionButton = {
@@ -74,7 +98,7 @@ fun HouseholdFormScreen(
                     if (houseNo.isNotBlank()) {
                         val household = Household(
                             id = if (householdId == -1L) 0 else householdId,
-                            houseNo = houseNo,
+                            houseNo = houseNo.trim(),
                             latitude = latitude,
                             longitude = longitude,
                             locationAccuracy = locationAccuracy,
@@ -93,8 +117,12 @@ fun HouseholdFormScreen(
                         Toast.makeText(context, "กรุณากรอกบ้านเลขที่", Toast.LENGTH_SHORT).show()
                     }
                 },
-                icon = { Icon(Icons.Filled.Save, contentDescription = "บันทึก") },
-                text = { Text("บันทึก") }
+                icon = { Icon(Icons.Filled.Save, contentDescription = null) },
+                text = { Text("บันทึกครัวเรือน", fontWeight = FontWeight.Bold) },
+                containerColor = EmeraldPrimary,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.shadow(8.dp, RoundedCornerShape(16.dp), spotColor = CardShadowTint)
             )
         }
     ) { padding ->
@@ -105,78 +133,164 @@ fun HouseholdFormScreen(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
-                value = houseNo,
-                onValueChange = { houseNo = it },
-                label = { Text("บ้านเลขที่ *") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            Text("พิกัด GPS", style = MaterialTheme.typography.titleMedium)
-            
-            if (latitude != null && longitude != null) {
-                Text("Lat: $latitude\nLon: $longitude", style = MaterialTheme.typography.bodyMedium)
-                if (locationAccuracy != null) {
-                    val acc = locationAccuracy!!
-                    val color = if (acc <= 20f) androidx.compose.ui.graphics.Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-                    Text("ความแม่นยำ: ${acc} เมตร", style = MaterialTheme.typography.bodySmall, color = color)
-                }
-                if (locationProvider != null) {
-                    Text("ข้อมูลจาก: $locationProvider", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (locationCapturedAt != null) {
-                    val dateStr = java.text.SimpleDateFormat("d MMM yyyy HH:mm", java.util.Locale("th", "TH")).format(java.util.Date(locationCapturedAt!!))
-                    Text("พิกัดบันทึกเมื่อ: $dateStr", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                Text("ยังไม่มีพิกัด", style = MaterialTheme.typography.bodyMedium)
-            }
+            // Card 1: Address
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(3.dp, RoundedCornerShape(18.dp), spotColor = CardShadowTint),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp, 16.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(EmeraldPrimary)
+                        )
+                        Text("ข้อมูลประจำครัวเรือน", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                    }
 
-            Button(
-                onClick = {
-                    if (locationPermissionState.status.isGranted) {
-                        coroutineScope.launch {
-                            try {
-                                Toast.makeText(context, "กำลังค้นหาตำแหน่งปัจจุบัน...", Toast.LENGTH_SHORT).show()
-                                @SuppressLint("MissingPermission")
-                                val locationRequest = com.google.android.gms.location.CurrentLocationRequest.Builder()
-                                    .setPriority(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY)
-                                    .build()
-                                val location = fusedLocationClient.getCurrentLocation(locationRequest, null).await()
-                                if (location != null) {
-                                    latitude = location.latitude
-                                    longitude = location.longitude
-                                    locationAccuracy = if (location.hasAccuracy()) location.accuracy else null
-                                    locationCapturedAt = location.time
-                                    locationProvider = location.provider
-                                    
-                                    val acc = locationAccuracy
-                                    if (acc != null) {
-                                        if (acc <= 20f) {
-                                            Toast.makeText(context, "ดึงพิกัดสำเร็จ (ความแม่นยำสูง)", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "พิกัดอาจคลาดเคลื่อน (ความแม่นยำ ${acc}m)", Toast.LENGTH_LONG).show()
-                                        }
-                                    } else {
-                                        Toast.makeText(context, "ดึงพิกัดสำเร็จ (ไม่ทราบความแม่นยำ)", Toast.LENGTH_SHORT).show()
-                                    }
-                                } else {
-                                    Toast.makeText(context, "ไม่สามารถหาตำแหน่งได้", Toast.LENGTH_SHORT).show()
+                    HorizontalDivider(color = HairlineBorder)
+
+                    OutlinedTextField(
+                        value = houseNo,
+                        onValueChange = { houseNo = it },
+                        label = { Text("บ้านเลขที่ *") },
+                        placeholder = { Text("เช่น 12/3 หรือ 45") },
+                        leadingIcon = { Icon(Icons.Filled.Home, contentDescription = null, tint = EmeraldPrimary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+            
+            // Card 2: GPS Telemetry
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(3.dp, RoundedCornerShape(18.dp), spotColor = CardShadowTint),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp, 16.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(TealSecondary)
+                        )
+                        Text("พิกัดแผนที่ (GPS Tracking)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                    }
+
+                    HorizontalDivider(color = HairlineBorder)
+
+                    if (latitude != null && longitude != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(SurfaceVariantLight)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(StatusVerifiedBg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = StatusVerifiedFg, modifier = Modifier.size(20.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Lat: $latitude, Lon: $longitude", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                                locationAccuracy?.let { acc ->
+                                    val isGood = acc <= 20f
+                                    Text(
+                                        "ความแม่นยำ: ±${acc}m (${if (isGood) "ระดับสูง" else "ปานกลาง"})",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isGood) StatusVerifiedFg else StatusNeedsReviewFg,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 }
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "เกิดข้อผิดพลาด: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
                     } else {
-                        locationPermissionState.launchPermissionRequest()
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = SurfaceVariantLight,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = OnSurfaceTertiary)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("ยังไม่ได้บันทึกพิกัดตำแหน่งบ้าน", style = MaterialTheme.typography.bodySmall, color = OnSurfaceSecondary)
+                            }
+                        }
                     }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Filled.LocationOn, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("อัปเดตพิกัด GPS")
+
+                    Button(
+                        onClick = {
+                            if (locationPermissionState.status.isGranted) {
+                                coroutineScope.launch {
+                                    try {
+                                        Toast.makeText(context, "กำลังระบุพิกัดความแม่นยำสูง...", Toast.LENGTH_SHORT).show()
+                                        @SuppressLint("MissingPermission")
+                                        val locationRequest = com.google.android.gms.location.CurrentLocationRequest.Builder()
+                                            .setPriority(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY)
+                                            .build()
+                                        val location = fusedLocationClient.getCurrentLocation(locationRequest, null).await()
+                                        if (location != null) {
+                                            latitude = location.latitude
+                                            longitude = location.longitude
+                                            locationAccuracy = if (location.hasAccuracy()) location.accuracy else null
+                                            locationCapturedAt = location.time
+                                            locationProvider = location.provider
+                                            Toast.makeText(context, "บันทึกพิกัดสำเร็จ", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "ไม่สามารถหาตำแหน่งได้", Toast.LENGTH_SHORT).show()
+                                        }
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "เกิดข้อผิดพลาด: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            } else {
+                                locationPermissionState.launchPermissionRequest()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = TealSecondary),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.MyLocation, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (latitude == null) "ดึงพิกัด GPS ปัจจุบัน" else "อัปเดตพิกัดใหม่", fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }
 }
+

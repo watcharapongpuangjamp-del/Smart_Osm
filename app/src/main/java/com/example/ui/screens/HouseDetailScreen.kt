@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,20 +10,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.Person
+import com.example.ui.theme.*
 import com.example.viewmodel.PersonViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,15 +51,16 @@ fun HouseDetailScreen(
     if (personToDelete != null) {
         AlertDialog(
             onDismissRequest = { personToDelete = null },
-            title = { Text("ยืนยันการลบ") },
-            text = { Text("คุณต้องการลบข้อมูลของ ${personToDelete?.fullName} หรือไม่?") },
+            title = { Text("ยืนยันการลบข้อมูล") },
+            text = { Text("คุณต้องการลบข้อมูลของ \"${personToDelete?.fullName}\" ออกจากทะเบียนครัวเรือนหรือไม่?") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         personToDelete?.let { viewModel.delete(it) }
                         personToDelete = null
-                    }
-                ) { Text("ลบ", color = MaterialTheme.colorScheme.error) }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("ลบข้อมูล") }
             },
             dismissButton = {
                 TextButton(onClick = { personToDelete = null }) { Text("ยกเลิก") }
@@ -59,34 +69,43 @@ fun HouseDetailScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("รายละเอียดบ้านเลขที่ ${householdWithPersons?.household?.houseNo ?: ""}") },
+                title = {
+                    Text(
+                        "บ้านเลขที่ ${householdWithPersons?.household?.houseNo ?: ""}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = EmeraldPrimary,
+                    titleContentColor = Color.White
                 )
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = onAddMemberClick,
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSecondary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "เพิ่มสมาชิก")
-            }
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text("เพิ่มสมาชิก", fontWeight = FontWeight.Bold) },
+                containerColor = EmeraldPrimary,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.shadow(8.dp, RoundedCornerShape(16.dp), spotColor = CardShadowTint)
+            )
         }
     ) { padding ->
         if (householdWithPersons == null) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = EmeraldPrimary)
             }
             return@Scaffold
         }
@@ -98,120 +117,275 @@ fun HouseDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 1. Household Summary Hero Card
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(10.dp, RoundedCornerShape(22.dp), spotColor = CardShadowTint)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(HeroGradientBrush)
+                        .padding(20.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("สมาชิกทั้งหมด", style = MaterialTheme.typography.labelLarge)
-                            Text("${houseMembers.size} คน", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    "ครัวเรือนในเขตความรับผิดชอบ",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                                Text(
+                                    "บ้านเลขที่ ${household.houseNo}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.Home, contentDescription = null, tint = MintAccent, modifier = Modifier.size(28.dp))
+                            }
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("เจ้าบ้าน", style = MaterialTheme.typography.labelLarge)
-                            Text("${houseMembers.count { it.houseStatus == com.example.data.HouseholdRole.HEAD }} คน", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Divider(color = Color.White.copy(alpha = 0.15f))
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("สมาชิกทั้งหมด", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.8f))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text("${houseMembers.size} คน", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                            }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("เจ้าบ้าน", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.8f))
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val headCount = houseMembers.count { it.houseStatus == com.example.data.HouseholdRole.HEAD }
+                                Text("$headCount คน", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MintAccent)
+                            }
+                        }
+
+                        if (household.latitude != null && household.longitude != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color.White.copy(alpha = 0.12f))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MintAccent, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "พิกัด GPS: ${household.latitude}, ${household.longitude}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
-                
-                if (household.latitude != null && household.longitude != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("พิกัด GPS: ${household.latitude}, ${household.longitude}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("รายชื่อสมาชิกครัวเรือน", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
 
-            items(houseMembers, key = { it.id }) { person ->
-                val age = viewModel.calculateAge(person.birthDate, person.personStatus)
-                
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                    Text(
+                        "รายชื่อสมาชิกในบ้าน",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = OnSurfacePrimary
+                    )
+                    Text(
+                        "${houseMembers.size} ท่าน",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceSecondary
+                    )
+                }
+            }
+
+            if (houseMembers.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder)
                     ) {
-                        // Avatar
-                        Box(
+                        Column(
                             modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .background(if (person.gender == com.example.data.Gender.MALE) Color(0xFFBBDEFB) else Color(0xFFF8BBD0)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Filled.Person, contentDescription = null, tint = if (person.gender == com.example.data.Gender.MALE) Color(0xFF1976D2) else Color(0xFFC2185B))
-                        }
-                        
-                        Spacer(modifier = Modifier.width(16.dp))
-                        
-                        // Details
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = person.fullName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Filled.Person, contentDescription = null, tint = OnSurfaceTertiary, modifier = Modifier.size(40.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text("ยังไม่มีข้อมูลสมาชิกในบ้านหลังนี้", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceSecondary)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "อายุ: ${age ?: "-"} ปี | บัตร: ${person.nationalId}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                StatusChip(
-                                    text = person.houseStatus.value, 
-                                    backgroundColor = if (person.houseStatus == com.example.data.HouseholdRole.HEAD) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                                    textColor = if (person.houseStatus == com.example.data.HouseholdRole.HEAD) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            Text("แตะปุ่ม \"เพิ่มสมาชิก\" ด้านล่างเพื่อเริ่มบันทึก", style = MaterialTheme.typography.labelSmall, color = OnSurfaceTertiary)
+                        }
+                    }
+                }
+            } else {
+                items(houseMembers, key = { it.id }) { person ->
+                    val age = viewModel.calculateAge(person.birthDate, person.personStatus)
+                    val isHead = person.houseStatus == com.example.data.HouseholdRole.HEAD
+                    val isDead = person.personStatus == com.example.data.PersonStatus.DEAD
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(3.dp, RoundedCornerShape(18.dp), spotColor = CardShadowTint),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = if (isHead) 1.5.dp else 1.dp,
+                            color = if (isHead) EmeraldPrimary.copy(alpha = 0.4f) else HairlineBorder
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Avatar Badge
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isDead) StatusDeadBg
+                                        else if (person.gender == com.example.data.Gender.MALE) Color(0xFFE0F2FE)
+                                        else Color(0xFFFCE7F3)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Person,
+                                    contentDescription = null,
+                                    tint = if (isDead) StatusDeadFg
+                                    else if (person.gender == com.example.data.Gender.MALE) Color(0xFF0284C7)
+                                    else Color(0xFFDB2777),
+                                    modifier = Modifier.size(28.dp)
                                 )
-                                if (person.personStatus == com.example.data.PersonStatus.DEAD) {
-                                    StatusChip(
-                                        text = "เสียชีวิต", 
-                                        backgroundColor = MaterialTheme.colorScheme.errorContainer,
-                                        textColor = MaterialTheme.colorScheme.onErrorContainer
+                            }
+                            
+                            Spacer(modifier = Modifier.width(14.dp))
+                            
+                            // Details Column
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = person.fullName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = OnSurfacePrimary
                                     )
+                                    if (isHead) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Icon(Icons.Filled.Star, contentDescription = "เจ้าบ้าน", tint = GoldenAmber, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "อายุ: ${age ?: "-"} ปี | ปชช: ${person.nationalId ?: "-"}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = OnSurfaceSecondary
+                                )
+                                
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    ModernChip(
+                                        text = person.houseStatus.value,
+                                        bg = if (isHead) StatusVerifiedBg else SurfaceVariantLight,
+                                        fg = if (isHead) StatusVerifiedFg else OnSurfaceSecondary
+                                    )
+                                    if (isDead) {
+                                        ModernChip(text = "เสียชีวิต", bg = StatusDeadBg, fg = StatusDeadFg)
+                                    }
+                                    if (person.dataStatus == com.example.data.DataStatus.NEEDS_REVIEW) {
+                                        ModernChip(text = "รอตรวจสอบ", bg = StatusNeedsReviewBg, fg = StatusNeedsReviewFg)
+                                    }
                                 }
                             }
-                        }
-                        
-                        // Actions
-                        Column {
-                            IconButton(onClick = { onHistoryClick(person.id) }) {
-                                Icon(Icons.Filled.Info, contentDescription = "ประวัติ", tint = MaterialTheme.colorScheme.secondary)
-                            }
-                            IconButton(onClick = { onEditMemberClick(person.id) }) {
-                                Icon(Icons.Filled.Edit, contentDescription = "แก้ไข", tint = MaterialTheme.colorScheme.primary)
-                            }
-                            IconButton(onClick = { personToDelete = person }) {
-                                Icon(Icons.Filled.Delete, contentDescription = "ลบ", tint = MaterialTheme.colorScheme.error)
+                            
+                            // Actions
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                horizontalAlignment = Alignment.End
+                            ) {
+                                IconButton(
+                                    onClick = { onHistoryClick(person.id) },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(Icons.Filled.History, contentDescription = "ประวัติแก้ไข", tint = TealSecondary, modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = { onEditMemberClick(person.id) },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(Icons.Filled.Edit, contentDescription = "แก้ไข", tint = EmeraldPrimary, modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = { personToDelete = person },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "ลบ", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
                     }
                 }
             }
             
-            item { Spacer(modifier = Modifier.height(72.dp)) } // Space for FAB
+            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 }
 
 @Composable
-fun StatusChip(text: String, backgroundColor: Color, textColor: Color) {
+fun ModernChip(text: String, bg: Color, fg: Color) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = backgroundColor,
+        shape = RoundedCornerShape(100.dp),
+        color = bg,
         modifier = Modifier.wrapContentSize()
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
             style = MaterialTheme.typography.labelSmall,
-            color = textColor,
+            color = fg,
             fontWeight = FontWeight.Bold
         )
     }
 }
+
