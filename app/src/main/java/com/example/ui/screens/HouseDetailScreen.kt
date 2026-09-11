@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.Person
+import com.example.ui.components.ThemeQuickToggleButton
 import com.example.ui.theme.*
 import com.example.viewmodel.PersonViewModel
 
@@ -84,6 +86,9 @@ fun HouseDetailScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "ย้อนกลับ", tint = Color.White)
                     }
+                },
+                actions = {
+                    ThemeQuickToggleButton(iconTint = Color.White)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = EmeraldPrimary,
@@ -216,12 +221,12 @@ fun HouseDetailScreen(
                         "รายชื่อสมาชิกในบ้าน",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = OnSurfacePrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         "${houseMembers.size} ท่าน",
                         style = MaterialTheme.typography.labelSmall,
-                        color = OnSurfaceSecondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -233,8 +238,8 @@ fun HouseDetailScreen(
                             .fillMaxWidth()
                             .padding(vertical = 12.dp),
                         shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                     ) {
                         Column(
                             modifier = Modifier
@@ -242,11 +247,11 @@ fun HouseDetailScreen(
                                 .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(Icons.Filled.Person, contentDescription = null, tint = OnSurfaceTertiary, modifier = Modifier.size(40.dp))
+                            Icon(Icons.Filled.Person, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
                             Spacer(modifier = Modifier.height(10.dp))
-                            Text("ยังไม่มีข้อมูลสมาชิกในบ้านหลังนี้", style = MaterialTheme.typography.bodyMedium, color = OnSurfaceSecondary)
+                            Text("ยังไม่มีข้อมูลสมาชิกในบ้านหลังนี้", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("แตะปุ่ม \"เพิ่มสมาชิก\" ด้านล่างเพื่อเริ่มบันทึก", style = MaterialTheme.typography.labelSmall, color = OnSurfaceTertiary)
+                            Text("แตะปุ่ม \"เพิ่มสมาชิก\" ด้านล่างเพื่อเริ่มบันทึก", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                         }
                     }
                 }
@@ -255,16 +260,24 @@ fun HouseDetailScreen(
                     val age = viewModel.calculateAge(person.birthDate, person.personStatus)
                     val isHead = person.houseStatus == com.example.data.HouseholdRole.HEAD
                     val isDead = person.personStatus == com.example.data.PersonStatus.DEAD
+                    val isDarkTheme = isSystemInDarkTheme()
+
+                    val verifiedBg = if (isDarkTheme) StatusVerifiedBgDark else StatusVerifiedBg
+                    val verifiedFg = if (isDarkTheme) StatusVerifiedFgDark else StatusVerifiedFg
+                    val deadBg = if (isDarkTheme) StatusDeadBgDark else StatusDeadBg
+                    val deadFg = if (isDarkTheme) StatusDeadFgDark else StatusDeadFg
+                    val reviewBg = if (isDarkTheme) StatusNeedsReviewBgDark else StatusNeedsReviewBg
+                    val reviewFg = if (isDarkTheme) StatusNeedsReviewFgDark else StatusNeedsReviewFg
 
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .shadow(3.dp, RoundedCornerShape(18.dp), spotColor = CardShadowTint),
                         shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         border = androidx.compose.foundation.BorderStroke(
                             width = if (isHead) 1.5.dp else 1.dp,
-                            color = if (isHead) EmeraldPrimary.copy(alpha = 0.4f) else HairlineBorder
+                            color = if (isHead) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
                         )
                     ) {
                         Row(
@@ -279,18 +292,18 @@ fun HouseDetailScreen(
                                     .size(52.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (isDead) StatusDeadBg
-                                        else if (person.gender == com.example.data.Gender.MALE) Color(0xFFE0F2FE)
-                                        else Color(0xFFFCE7F3)
+                                        if (isDead) deadBg
+                                        else if (person.gender == com.example.data.Gender.MALE) (if (isDarkTheme) Color(0xFF0C3348) else Color(0xFFE0F2FE))
+                                        else (if (isDarkTheme) Color(0xFF451528) else Color(0xFFFCE7F3))
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Filled.Person,
                                     contentDescription = null,
-                                    tint = if (isDead) StatusDeadFg
-                                    else if (person.gender == com.example.data.Gender.MALE) Color(0xFF0284C7)
-                                    else Color(0xFFDB2777),
+                                    tint = if (isDead) deadFg
+                                    else if (person.gender == com.example.data.Gender.MALE) (if (isDarkTheme) Color(0xFF38BDF8) else Color(0xFF0284C7))
+                                    else (if (isDarkTheme) Color(0xFFF472B6) else Color(0xFFDB2777)),
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
@@ -304,7 +317,7 @@ fun HouseDetailScreen(
                                         text = person.fullName,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = OnSurfacePrimary
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                     if (isHead) {
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -316,7 +329,7 @@ fun HouseDetailScreen(
                                 Text(
                                     text = "อายุ: ${age ?: "-"} ปี | ปชช: ${person.nationalId ?: "-"}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = OnSurfaceSecondary
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -326,14 +339,14 @@ fun HouseDetailScreen(
                                 ) {
                                     ModernChip(
                                         text = person.houseStatus.value,
-                                        bg = if (isHead) StatusVerifiedBg else SurfaceVariantLight,
-                                        fg = if (isHead) StatusVerifiedFg else OnSurfaceSecondary
+                                        bg = if (isHead) verifiedBg else MaterialTheme.colorScheme.surfaceVariant,
+                                        fg = if (isHead) verifiedFg else MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     if (isDead) {
-                                        ModernChip(text = "เสียชีวิต", bg = StatusDeadBg, fg = StatusDeadFg)
+                                        ModernChip(text = "เสียชีวิต", bg = deadBg, fg = deadFg)
                                     }
                                     if (person.dataStatus == com.example.data.DataStatus.NEEDS_REVIEW) {
-                                        ModernChip(text = "รอตรวจสอบ", bg = StatusNeedsReviewBg, fg = StatusNeedsReviewFg)
+                                        ModernChip(text = "รอตรวจสอบ", bg = reviewBg, fg = reviewFg)
                                     }
                                 }
                             }

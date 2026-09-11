@@ -31,7 +31,7 @@ val OnSurfacePrimary = Color(0xFF13231D)
 val OnSurfaceSecondary = Color(0xFF4A6357)
 val OnSurfaceTertiary = Color(0xFF7E978C)
 
-// Semantic Status Pill Colors
+// Semantic Status Pill Colors (Light Mode)
 val StatusVerifiedBg = Color(0xFFD7F5E8)
 val StatusVerifiedFg = Color(0xFF0C6B4B)
 val StatusNeedsReviewBg = Color(0xFFFEF3C7)
@@ -39,13 +39,24 @@ val StatusNeedsReviewFg = Color(0xFFB45309)
 val StatusDeadBg = Color(0xFFFEE2E2)
 val StatusDeadFg = Color(0xFFB91C1C)
 
+// Semantic Status Pill Colors (Dark Mode)
+val StatusVerifiedBgDark = Color(0xFF0D3D2E)
+val StatusVerifiedFgDark = Color(0xFF6EE7B7)
+val StatusNeedsReviewBgDark = Color(0xFF3B2508)
+val StatusNeedsReviewFgDark = Color(0xFFFDE68A)
+val StatusDeadBgDark = Color(0xFF3D1414)
+val StatusDeadFgDark = Color(0xFFFCA5A5)
+
 // Dark Theme Colors
 val EmeraldPrimaryDarkTheme = Color(0xFF4EE8B1)
 val TealSecondaryDarkTheme = Color(0xFF5EEAD4)
-val BackgroundDark = Color(0xFF0D1713)
-val SurfaceDark = Color(0xFF14241E)
-val SurfaceVariantDark = Color(0xFF1B3029)
-val OnSurfaceDark = Color(0xFFE3EDE7)
+val BackgroundDark = Color(0xFF0C1612)
+val SurfaceDark = Color(0xFF13221C)
+val SurfaceVariantDark = Color(0xFF1C3128)
+val OnSurfaceDark = Color(0xFFE4EDE7)
+val OnSurfaceVariantDark = Color(0xFFA5BDB0)
+val HairlineBorderDark = Color(0x334EE8B1)
+val CardShadowTintDark = Color(0x66000000)
 
 // Premium Gradient Brushes
 val HeroGradientBrush = Brush.horizontalGradient(

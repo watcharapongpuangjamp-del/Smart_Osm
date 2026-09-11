@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Villa
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.components.ThemeQuickToggleButton
 import com.example.ui.theme.*
 import com.example.viewmodel.PersonViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -172,6 +174,7 @@ fun HouseholdListScreen(
                     actionIconContentColor = Color.White
                 ),
                 actions = {
+                    ThemeQuickToggleButton(iconTint = Color.White)
                     IconButton(
                         onClick = { exportLauncher.launch("smart_osm_households.xlsx") }
                     ) {
@@ -210,9 +213,9 @@ fun HouseholdListScreen(
             item(span = { GridItemSpan(2) }) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = SurfaceLight,
+                    color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 4.dp,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     TextField(
@@ -250,7 +253,7 @@ fun HouseholdListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(SurfaceVariantLight)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -266,7 +269,7 @@ fun HouseholdListScreen(
                         Text(
                             text = if (searchQuery.isNotBlank()) "ผลการค้นหา: ${filteredList.size} หลังคาเรือน" else "ข้อมูลสำรวจล่าสุด",
                             style = MaterialTheme.typography.labelSmall,
-                            color = OnSurfaceSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -274,7 +277,7 @@ fun HouseholdListScreen(
                     Text(
                         text = "แตะเพื่อดูสมาชิก",
                         style = MaterialTheme.typography.labelSmall,
-                        color = EmeraldPrimary,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -293,14 +296,14 @@ fun HouseholdListScreen(
                                 modifier = Modifier
                                     .size(72.dp)
                                     .clip(CircleShape)
-                                    .background(SurfaceVariantLight),
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     Icons.Filled.Villa,
                                     contentDescription = null,
                                     modifier = Modifier.size(36.dp),
-                                    tint = OnSurfaceTertiary
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Spacer(modifier = Modifier.height(14.dp))
@@ -308,13 +311,13 @@ fun HouseholdListScreen(
                                 if (searchQuery.isBlank()) "ยังไม่มีข้อมูลครัวเรือน" else "ไม่พบข้อมูลบ้านเลขที่ \"$searchQuery\"",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = OnSurfacePrimary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 "กดปุ่ม + ด้านล่างเพื่อเพิ่มข้อมูลใหม่",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = OnSurfaceSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -329,7 +332,7 @@ fun HouseholdListScreen(
             }
 
             item(span = { GridItemSpan(2) }) {
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(64.dp))
             }
         }
     }
@@ -340,12 +343,16 @@ fun HouseholdCard(
     summary: com.example.data.HouseSummary,
     onClick: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val badgeBg = if (isDark) StatusVerifiedBgDark else StatusVerifiedBg
+    val badgeFg = if (isDark) StatusVerifiedFgDark else StatusVerifiedFg
+
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
         modifier = Modifier
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(20.dp), spotColor = CardShadowTint)
@@ -365,20 +372,20 @@ fun HouseholdCard(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(SurfaceSubtle),
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Filled.Home,
                         contentDescription = null,
                         modifier = Modifier.size(26.dp),
-                        tint = EmeraldPrimary
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(100.dp),
-                    color = if (summary.totalMembers > 0) StatusVerifiedBg else SurfaceVariantLight
+                    color = if (summary.totalMembers > 0) badgeBg else MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -388,14 +395,14 @@ fun HouseholdCard(
                             Icons.Filled.Person,
                             contentDescription = null,
                             modifier = Modifier.size(13.dp),
-                            tint = if (summary.totalMembers > 0) StatusVerifiedFg else OnSurfaceTertiary
+                            tint = if (summary.totalMembers > 0) badgeFg else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
                             text = "${summary.totalMembers}",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (summary.totalMembers > 0) StatusVerifiedFg else OnSurfaceTertiary
+                            color = if (summary.totalMembers > 0) badgeFg else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -407,20 +414,20 @@ fun HouseholdCard(
                 Text(
                     text = "บ้านเลขที่",
                     style = MaterialTheme.typography.labelSmall,
-                    color = OnSurfaceTertiary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = summary.houseNo,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = OnSurfacePrimary,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${summary.totalMembers} คนในทะเบียน",
                     style = MaterialTheme.typography.bodySmall,
-                    color = OnSurfaceSecondary
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

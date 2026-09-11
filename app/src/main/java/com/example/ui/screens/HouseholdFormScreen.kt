@@ -139,8 +139,8 @@ fun HouseholdFormScreen(
                     .fillMaxWidth()
                     .shadow(3.dp, RoundedCornerShape(18.dp), spotColor = CardShadowTint),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
-                border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             ) {
                 Column(
                     modifier = Modifier.padding(18.dp),
@@ -156,10 +156,10 @@ fun HouseholdFormScreen(
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(EmeraldPrimary)
                         )
-                        Text("ข้อมูลประจำครัวเรือน", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                        Text("ข้อมูลประจำครัวเรือน", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
 
-                    HorizontalDivider(color = HairlineBorder)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
 
                     OutlinedTextField(
                         value = houseNo,
@@ -180,8 +180,8 @@ fun HouseholdFormScreen(
                     .fillMaxWidth()
                     .shadow(3.dp, RoundedCornerShape(18.dp), spotColor = CardShadowTint),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = SurfaceLight),
-                border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             ) {
                 Column(
                     modifier = Modifier.padding(18.dp),
@@ -197,17 +197,17 @@ fun HouseholdFormScreen(
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(TealSecondary)
                         )
-                        Text("พิกัดแผนที่ (GPS Tracking)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                        Text("พิกัดแผนที่ (GPS Tracking)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     }
 
-                    HorizontalDivider(color = HairlineBorder)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
 
                     if (latitude != null && longitude != null) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(SurfaceVariantLight)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -222,7 +222,7 @@ fun HouseholdFormScreen(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text("Lat: $latitude, Lon: $longitude", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = OnSurfacePrimary)
+                                Text("Lat: $latitude, Lon: $longitude", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                                 locationAccuracy?.let { acc ->
                                     val isGood = acc <= 20f
                                     Text(
@@ -237,16 +237,16 @@ fun HouseholdFormScreen(
                     } else {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = SurfaceVariantLight,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = OnSurfaceTertiary)
+                                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("ยังไม่ได้บันทึกพิกัดตำแหน่งบ้าน", style = MaterialTheme.typography.bodySmall, color = OnSurfaceSecondary)
+                                Text("ยังไม่ได้บันทึกพิกัดตำแหน่งบ้าน", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }

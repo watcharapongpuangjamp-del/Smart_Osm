@@ -367,8 +367,8 @@ fun FormSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) 
             .fillMaxWidth()
             .shadow(3.dp, RoundedCornerShape(18.dp), spotColor = CardShadowTint),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
-        border = BorderStroke(1.dp, HairlineBorder)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
     ) {
         Column(
             modifier = Modifier
@@ -384,16 +384,16 @@ fun FormSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) 
                     modifier = Modifier
                         .size(4.dp, 16.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(EmeraldPrimary)
+                        .background(MaterialTheme.colorScheme.primary)
                 )
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = OnSurfacePrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            HorizontalDivider(color = HairlineBorder)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
             content()
         }
     }

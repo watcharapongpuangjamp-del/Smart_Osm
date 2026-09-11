@@ -16,7 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.data.AppDatabase
 import com.example.data.PersonRepository
 import com.example.ui.navigation.AppNavigation
-import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.AppThemeProvider
 import com.example.viewmodel.PersonViewModel
 
 class MainActivity : ComponentActivity() {
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            MyApplicationTheme {
+            AppThemeProvider {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     val viewModel: PersonViewModel = viewModel(factory = factory)
                     val navController = rememberNavController()

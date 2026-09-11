@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.components.ThemeQuickToggleButton
 import com.example.ui.theme.*
 import com.example.viewmodel.PersonViewModel
 
@@ -79,6 +80,9 @@ fun DashboardScreen(
                             )
                         }
                     }
+                },
+                actions = {
+                    ThemeQuickToggleButton(iconTint = Color.White)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = EmeraldPrimary,
@@ -215,13 +219,13 @@ fun DashboardScreen(
                         Text(
                             text = "โครงสร้างประชากรตามช่วงวัย",
                             style = MaterialTheme.typography.titleMedium,
-                            color = OnSurfacePrimary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "${ageGroupSummary.values.sum()} รายการ",
                             style = MaterialTheme.typography.labelSmall,
-                            color = OnSurfaceSecondary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -234,8 +238,8 @@ fun DashboardScreen(
                                 spotColor = CardShadowTint
                             ),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = SurfaceLight),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, HairlineBorder)
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                     ) {
                         Column(
                             modifier = Modifier.padding(18.dp),
@@ -251,19 +255,19 @@ fun DashboardScreen(
                                     Icon(
                                         Icons.Filled.Person,
                                         contentDescription = null,
-                                        tint = OnSurfaceTertiary,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(36.dp)
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         "ยังไม่มีข้อมูลประชากร",
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = OnSurfaceSecondary
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
                                         "เพิ่มบ้านและสมาชิกเพื่อดูสถิติเชิงลึก",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = OnSurfaceTertiary
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                     )
                                 }
                             } else {
@@ -286,7 +290,7 @@ fun DashboardScreen(
                                                         .background(
                                                             if (group.contains("สูงอายุ")) GoldenAmber
                                                             else if (group.contains("เด็ก")) TealLight
-                                                            else EmeraldPrimary
+                                                            else MaterialTheme.colorScheme.primary
                                                         )
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
@@ -294,7 +298,7 @@ fun DashboardScreen(
                                                     text = group,
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     fontWeight = FontWeight.Medium,
-                                                    color = OnSurfacePrimary
+                                                    color = MaterialTheme.colorScheme.onSurface
                                                 )
                                             }
 
@@ -303,13 +307,13 @@ fun DashboardScreen(
                                                     text = "$count คน",
                                                     style = MaterialTheme.typography.bodyMedium,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = EmeraldPrimary
+                                                    color = MaterialTheme.colorScheme.primary
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
                                                     text = "($percent%)",
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = OnSurfaceSecondary
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
                                         }
@@ -322,7 +326,7 @@ fun DashboardScreen(
                                                 .fillMaxWidth()
                                                 .height(8.dp)
                                                 .clip(RoundedCornerShape(100.dp))
-                                                .background(SurfaceVariantLight)
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                         ) {
                                             Box(
                                                 modifier = Modifier
@@ -332,7 +336,7 @@ fun DashboardScreen(
                                                     .background(
                                                         if (group.contains("สูงอายุ")) GoldenAmber
                                                         else if (group.contains("เด็ก")) TealLight
-                                                        else EmeraldPrimary
+                                                        else MaterialTheme.colorScheme.primary
                                                     )
                                             )
                                         }

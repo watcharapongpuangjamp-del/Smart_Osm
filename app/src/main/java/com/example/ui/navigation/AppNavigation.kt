@@ -52,9 +52,9 @@ fun AppNavigation(
             // Show bottom bar only on main tabs
             if (currentRoute in items.map { it.route }) {
                 NavigationBar(
-                    containerColor = com.example.ui.theme.SurfaceLight,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp,
-                    modifier = Modifier.shadow(12.dp, spotColor = com.example.ui.theme.CardShadowTint)
+                    modifier = Modifier.shadow(12.dp, spotColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
                 ) {
                     items.forEach { item ->
                         val selected = currentRoute == item.route
@@ -68,11 +68,11 @@ fun AppNavigation(
                             },
                             selected = selected,
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = com.example.ui.theme.EmeraldPrimary,
-                                selectedTextColor = com.example.ui.theme.EmeraldPrimary,
-                                indicatorColor = com.example.ui.theme.StatusVerifiedBg,
-                                unselectedIconColor = com.example.ui.theme.OnSurfaceTertiary,
-                                unselectedTextColor = com.example.ui.theme.OnSurfaceTertiary
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             onClick = {
                                 navController.navigate(item.route) {

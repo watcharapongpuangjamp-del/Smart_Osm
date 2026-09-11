@@ -27,8 +27,9 @@ private val DarkColorScheme =
     surfaceVariant = SurfaceVariantDark,
     onBackground = OnSurfaceDark,
     onSurface = OnSurfaceDark,
-    onSurfaceVariant = Color(0xFFB1C4BA),
-    outline = Color(0xFF3F554B)
+    onSurfaceVariant = OnSurfaceVariantDark,
+    outline = HairlineBorderDark,
+    outlineVariant = Color(0xFF1B382D)
   )
 
 private val LightColorScheme =
