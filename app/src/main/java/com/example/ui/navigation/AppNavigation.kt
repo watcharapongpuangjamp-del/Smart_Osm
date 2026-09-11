@@ -95,14 +95,31 @@ fun AppNavigation(
             composable("splash") {
                 SplashScreen(
                     onStartApp = {
-                        navController.navigate(BottomNavItem.Households.route) {
+                        navController.navigate(BottomNavItem.Dashboard.route) {
                             popUpTo("splash") { inclusive = true }
                         }
                     }
                 )
             }
             composable(BottomNavItem.Dashboard.route) {
-                DashboardScreen(viewModel = viewModel)
+                DashboardScreen(
+                    viewModel = viewModel,
+                    onNavigateToHouseholds = {
+                        navController.navigate(BottomNavItem.Households.route)
+                    },
+                    onNavigateToNewHousehold = {
+                        navController.navigate("household_form/-1")
+                    },
+                    onNavigateToMap = {
+                        navController.navigate(BottomNavItem.Map.route)
+                    },
+                    onNavigateToInfo = {
+                        navController.navigate(BottomNavItem.Info.route)
+                    },
+                    onNavigateToHouseDetail = { householdId ->
+                        navController.navigate("house_detail/$householdId")
+                    }
+                )
             }
             composable(BottomNavItem.Households.route) {
                 HouseholdListScreen(
