@@ -74,4 +74,13 @@ object ValidationUtils {
         val checkDigit = (11 - (sum % 11)) % 10
         return checkDigit == normalized[12].digitToInt()
     }
+
+    fun isValidGpsCoordinates(lat: Double?, lon: Double?, accuracy: Float?): Boolean {
+        if (lat == null || lon == null) return false
+        if (lat < -90.0 || lat > 90.0) return false
+        if (lon < -180.0 || lon > 180.0) return false
+        if (lat == 0.0 && lon == 0.0) return false
+        if (accuracy != null && accuracy <= 0f) return false
+        return true
+    }
 }

@@ -54,7 +54,7 @@ fun PersonFormScreen(
         if (personId != -1L) {
             val person = viewModel.getPersonById(personId)
             person?.let {
-                nationalId = it.nationalId
+                nationalId = it.nationalId ?: ""
                 fullName = it.fullName
                 gender = it.gender
                 birthDate = it.birthDate

@@ -6,7 +6,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Person::class, Household::class, PersonHistory::class], version = 6, exportSchema = true)
+@Database(entities = [Person::class, Household::class, PersonHistory::class], version = 7, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun personDao(): PersonDao
@@ -57,6 +57,44 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("INSERT INTO `person_history_new` (`id`, `personId`, `action`, `oldValue`, `newValue`, `timestamp`, `operatorId`, `operatorName`, `role`, `deviceId`, `source`) SELECT `id`, `personId`, `action`, `oldValue`, `newValue`, `timestamp`, 'SYSTEM', 'System', 'SYSTEM', 'local', 'SYSTEM' FROM `person_history`")
                 db.execSQL("DROP TABLE `person_history`")
                 db.execSQL("ALTER TABLE `person_history_new` RENAME TO `person_history`")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Make nationalId nullable and add personUuid unique index
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `persons_new` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `personUuid` TEXT NOT NULL DEFAULT '',
+                        `householdId` INTEGER NOT NULL,
+                        `nationalId` TEXT,
+                        `fullName` TEXT NOT NULL,
+                        `gender` TEXT NOT NULL,
+                        `birthDate` TEXT,
+                        `isBirthYearOnly` INTEGER NOT NULL DEFAULT 0,
+                        `houseStatus` TEXT NOT NULL,
+                        `personStatus` TEXT NOT NULL,
+                        `dataStatus` TEXT NOT NULL,
+                        FOREIGN KEY(`householdId`) REFERENCES `households`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """)
+                db.execSQL("""
+                    INSERT INTO `persons_new` (`id`, `personUuid`, `householdId`, `nationalId`, `fullName`, `gender`, `birthDate`, `isBirthYearOnly`, `houseStatus`, `personStatus`, `dataStatus`)
+                    SELECT `id`,
+                           CASE WHEN `personUuid` IS NULL OR `personUuid` = '' THEN lower(hex(randomblob(16))) ELSE `personUuid` END,
+                           `householdId`,
+                           CASE WHEN `nationalId` = '' THEN NULL ELSE `nationalId` END,
+                           `fullName`, `gender`, `birthDate`, `isBirthYearOnly`, `houseStatus`, `personStatus`, `dataStatus`
+                    FROM `persons`
+                """)
+                db.execSQL("DROP TABLE `persons`")
+                db.execSQL("ALTER TABLE `persons_new` RENAME TO `persons`")
+
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_persons_householdId` ON `persons` (`householdId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_persons_nationalId` ON `persons` (`nationalId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_persons_personUuid` ON `persons` (`personUuid`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_households_householdUuid` ON `households` (`householdUuid`)")
             }
         }
     }

@@ -18,7 +18,8 @@ import java.time.LocalDate
     ],
     indices = [
         Index("householdId"),
-        Index("nationalId", unique = true)
+        Index("nationalId", unique = true),
+        Index("personUuid", unique = true)
     ]
 )
 data class Person(
@@ -26,7 +27,7 @@ data class Person(
     val id: Long = 0,
     val personUuid: String = java.util.UUID.randomUUID().toString(),
     val householdId: Long,
-    val nationalId: String,
+    val nationalId: String?,
     val fullName: String,
     val gender: Gender,
     val birthDate: LocalDate?,
