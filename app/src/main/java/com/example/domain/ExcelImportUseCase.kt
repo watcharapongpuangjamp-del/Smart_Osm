@@ -2,279 +2,385 @@ package com.example.domain
 
 import androidx.room.withTransaction
 import com.example.data.AppDatabase
+import com.example.data.DataStatus
+import com.example.data.Gender
 import com.example.data.Household
+import com.example.data.HouseholdRole
 import com.example.data.Person
 import com.example.data.PersonHistory
-import com.example.data.Gender
-import com.example.data.HouseholdRole
 import com.example.data.PersonStatus
-import com.example.data.DataStatus
+import com.example.utils.NationalIdStatus
 import com.example.utils.ValidationUtils
 import org.apache.poi.ss.usermodel.Cell
 import org.apache.poi.ss.usermodel.CellType
 import org.apache.poi.ss.usermodel.DateUtil
+import org.apache.poi.ss.usermodel.Row
 import org.apache.poi.ss.usermodel.WorkbookFactory
 import java.io.InputStream
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.UUID
 
 class ExcelImportUseCase(
     private val database: AppDatabase
 ) {
-    suspend operator fun invoke(inputStream: InputStream): ExcelImportResult {
+    suspend fun createImportPlan(inputStream: InputStream): ImportPlan {
         val errors = mutableListOf<ImportError>()
+        val plannedItems = mutableListOf<PlannedPersonImport>()
         var totalRows = 0
-        var successCount = 0
-        var duplicateCount = 0
-        var invalidNationalIdCount = 0
-        var invalidBirthDateCount = 0
-        var needsReviewCount = 0
+
+        val householdDao = database.householdDao()
+        val personDao = database.personDao()
+
+        val existingHouseholds = householdDao.getAllHouseholds()
+        val householdsByUuid = existingHouseholds.associateBy { it.householdUuid }
+        val householdsGroupedByAddress = existingHouseholds.groupBy { h ->
+            buildAddressKey(h.houseNo, h.villageNo, h.subdistrict, h.district, h.province)
+        }
+
+        val existingPersons = personDao.getAllPersonsList()
+        val personsByUuid = existingPersons.associateBy { it.personUuid }
+        val personsByNationalId = existingPersons.filter { !it.nationalId.isNullOrBlank() }.associateBy { it.nationalId!! }
+
+        val seenPersonUuidsInFile = mutableSetOf<String>()
+        val seenNationalIdsInFile = mutableSetOf<String>()
 
         try {
             val workbook = WorkbookFactory.create(inputStream)
             val sheet = workbook.getSheetAt(0)
-            
-            val rowsToProcess = mutableListOf<ImportRowData>()
-            
-            var startRow = 1
-            val headerRow = sheet.getRow(0)
-            if (headerRow != null && getCellValueAsString(headerRow.getCell(0)).contains("schemaVersion", ignoreCase = true)) {
-                startRow = 1
-            } else if (sheet.lastRowNum > 0 && sheet.getRow(1)?.getCell(0)?.toString()?.contains("schemaVersion", ignoreCase = true) == true) {
-                startRow = 2
-            } else {
-                startRow = 1
+
+            // Step 1: Detect Header Row and build Header Mapping
+            var headerRowIndex = -1
+            val headerColumnMap = mutableMapOf<String, Int>()
+
+            for (r in 0..minOf(5, sheet.lastRowNum)) {
+                val row = sheet.getRow(r) ?: continue
+                val matched = mutableMapOf<String, Int>()
+                for (c in 0 until row.lastCellNum) {
+                    val cellVal = getCellValueAsString(row.getCell(c))
+                    val key = SmartOsmExcelSchema.resolveColumnKey(cellVal)
+                    if (key != null) {
+                        matched[key] = c
+                    }
+                }
+                if (matched.containsKey(SmartOsmExcelSchema.COL_HOUSE_NO) ||
+                    matched.containsKey(SmartOsmExcelSchema.COL_NATIONAL_ID) ||
+                    matched.containsKey(SmartOsmExcelSchema.COL_FULL_NAME) ||
+                    matched.containsKey(SmartOsmExcelSchema.COL_SCHEMA_VERSION)) {
+                    headerRowIndex = r
+                    headerColumnMap.putAll(matched)
+                    break
+                }
             }
+
+            val startRow = if (headerRowIndex >= 0) headerRowIndex + 1 else 1
 
             for (i in startRow..sheet.lastRowNum) {
                 val row = sheet.getRow(i) ?: continue
                 totalRows++
 
-                val colCount = row.lastCellNum.toInt()
-                val isV1 = colCount >= 12 && (getCellValueAsString(row.getCell(0)).equals("SMART_OSM_EXCEL_V1", ignoreCase = true) || colCount >= 15)
+                val houseNo = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_HOUSE_NO, defaultIdx = 3).trim()
+                val villageNo = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_VILLAGE_NO, defaultIdx = 4).trim()
+                val subdistrict = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_SUBDISTRICT, defaultIdx = 5).trim()
+                val district = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_DISTRICT, defaultIdx = 6).trim()
+                val province = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_PROVINCE, defaultIdx = 7).trim()
 
-                val householdUuid = if (isV1 && colCount > 1) getCellValueAsString(row.getCell(1)) else ""
-                val personUuid = if (isV1 && colCount > 2) getCellValueAsString(row.getCell(2)) else ""
+                val rawHouseholdUuid = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_HOUSEHOLD_UUID, defaultIdx = 1).trim()
+                val rawPersonUuid = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_PERSON_UUID, defaultIdx = 2).trim()
+
+                val rawNatId = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_NATIONAL_ID, defaultIdx = 8).trim()
+                val fullName = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_FULL_NAME, defaultIdx = 9).trim()
+                val rawGender = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_GENDER, defaultIdx = 10).trim()
                 
-                val houseNoIdx = if (isV1) 3 else 0
-                val houseNo = getCellValueAsString(row.getCell(houseNoIdx))
-                
-                if (houseNo.isBlank()) {
-                    errors.add(ImportError(i + 1, "ไม่มีข้อมูลบ้านเลขที่"))
-                    continue
-                }
+                val dobCell = getCellObjectByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_BIRTH_DATE, defaultIdx = 11)
+                val rawPrecision = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_BIRTH_DATE_PRECISION, defaultIdx = 12).trim()
+                val rawHouseStatus = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_HOUSE_STATUS, defaultIdx = 13).trim()
+                val rawPersonStatus = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_PERSON_STATUS, defaultIdx = 14).trim()
+                val rawDataStatus = getCellByHeader(row, headerColumnMap, SmartOsmExcelSchema.COL_DATA_STATUS, defaultIdx = 15).trim()
 
-                val villageNo = if (isV1) getCellValueAsString(row.getCell(4)) else ""
-                val subdistrict = if (isV1) getCellValueAsString(row.getCell(5)) else ""
-                val district = if (isV1) getCellValueAsString(row.getCell(6)) else ""
-                val province = if (isV1) getCellValueAsString(row.getCell(7)) else ""
-
-                val natIdIdx = if (isV1) 8 else 2
-                val rawNatId = getCellValueAsString(row.getCell(natIdIdx))
-                val nationalId = ValidationUtils.normalizeNationalId(rawNatId).ifBlank { null }
-
-                val nameIdx = if (isV1) 9 else 3
-                val fullName = getCellValueAsString(row.getCell(nameIdx))
-
-                if (houseNo.isBlank() && nationalId.isNullOrBlank() && fullName.isBlank()) {
+                // Skip blank row
+                if (houseNo.isBlank() && rawNatId.isBlank() && fullName.isBlank()) {
                     totalRows--
                     continue
                 }
 
-                val genderIdx = if (isV1) 10 else 4
-                val gender = Gender.fromString(getCellValueAsString(row.getCell(genderIdx)))
+                val rowNum = i + 1
+                val reviewReasons = mutableListOf<String>()
+                var isDuplicateUuid = false
+                var isAmbiguousHousehold = false
 
-                val dobIdx = if (isV1) 11 else 5
-                val rawDobCell = row.getCell(dobIdx)
-                val parsedDateResult = parseDateCell(rawDobCell)
+                if (houseNo.isBlank()) {
+                    errors.add(ImportError(rowNum, "ไม่มีข้อมูลบ้านเลขที่"))
+                    continue
+                }
+
+                // National ID processing & status
+                val normalizedNatId = ValidationUtils.normalizeNationalId(rawNatId).ifBlank { null }
+                val nationalIdStatus = ValidationUtils.checkNationalIdStatus(normalizedNatId)
+                if (nationalIdStatus == NationalIdStatus.INVALID) {
+                    reviewReasons.add("เลขบัตรประชาชนไม่ถูกต้อง ($rawNatId)")
+                }
+
+                // Date parsing & precision
+                val parsedDateResult = parseDateCell(dobCell)
                 val birthDate = parsedDateResult.first
-                val isBirthYearOnly = parsedDateResult.second
+                val isBirthYearOnly = if (rawPrecision.equals("YEAR", ignoreCase = true) || rawPrecision.equals("ปี", ignoreCase = true)) {
+                    true
+                } else if (rawPrecision.equals("DAY", ignoreCase = true) || rawPrecision.equals("วัน", ignoreCase = true)) {
+                    false
+                } else {
+                    parsedDateResult.second
+                }
 
-                val hStatusIdx = if (isV1) 13 else 7
-                val houseStatus = HouseholdRole.fromString(getCellValueAsString(row.getCell(hStatusIdx)))
+                if (birthDate == null) {
+                    reviewReasons.add("วันเกิดไม่ถูกต้องหรือว่างเปล่า")
+                }
 
-                val pStatusIdx = if (isV1) 14 else 8
-                val personStatus = PersonStatus.fromString(getCellValueAsString(row.getCell(pStatusIdx)))
+                // UUID processing & duplicate detection
+                // Requirement 5: Duplicate UUID -> NEEDS_REVIEW ห้ามสร้าง UUID ใหม่
+                val personUuid = if (rawPersonUuid.isNotBlank()) {
+                    if (!seenPersonUuidsInFile.add(rawPersonUuid)) {
+                        isDuplicateUuid = true
+                        reviewReasons.add("Duplicate personUuid within file: $rawPersonUuid (ห้ามสร้าง UUID ใหม่)")
+                    }
+                    rawPersonUuid
+                } else {
+                    UUID.randomUUID().toString().also { seenPersonUuidsInFile.add(it) }
+                }
 
-                var isNationalIdValid = true
-                if (nationalId != null) {
-                    if (!ValidationUtils.isValidThaiNationalId(nationalId)) {
-                        isNationalIdValid = false
-                        invalidNationalIdCount++
-                        errors.add(ImportError(i + 1, "เลขบัตรประชาชนไม่ถูกต้อง ($nationalId)"))
+                val householdUuid = rawHouseholdUuid.ifBlank {
+                    UUID.randomUUID().toString()
+                }
+
+                // Duplicate National ID in file
+                if (normalizedNatId != null) {
+                    if (!seenNationalIdsInFile.add(normalizedNatId)) {
+                        reviewReasons.add("เลขบัตรประชาชนซ้ำในไฟล์ Excel ($normalizedNatId)")
                     }
                 }
 
-                var hasValidBirthDate = birthDate != null
-                if (!hasValidBirthDate) {
-                    invalidBirthDateCount++
-                    errors.add(ImportError(i + 1, "วันเกิดไม่ถูกต้องหรือว่างเปล่า"))
+                // Household Matching
+                // Requirement 8: Household ambiguous match -> NEEDS_REVIEW
+                var targetHouseholdId: Long = 0
+                var isNewHousehold = false
+                val addressKey = buildAddressKey(houseNo, villageNo, subdistrict, district, province)
+
+                val matchedByUuid = if (rawHouseholdUuid.isNotBlank()) householdsByUuid[rawHouseholdUuid] else null
+                val householdCandidate: Household = if (matchedByUuid != null) {
+                    targetHouseholdId = matchedByUuid.id
+                    matchedByUuid
+                } else {
+                    val matchingAddressList = householdsGroupedByAddress[addressKey] ?: emptyList()
+                    if (matchingAddressList.size == 1) {
+                        val h = matchingAddressList.first()
+                        targetHouseholdId = h.id
+                        h
+                    } else if (matchingAddressList.size > 1) {
+                        isAmbiguousHousehold = true
+                        reviewReasons.add("พบครัวเรือนที่ตรงกับที่อยู่นี้มากกว่า 1 รายการ (${matchingAddressList.size} หลัง) — Ambiguous Match")
+                        matchingAddressList.first()
+                    } else {
+                        isNewHousehold = true
+                        Household(
+                            householdUuid = householdUuid,
+                            houseNo = houseNo,
+                            villageNo = villageNo,
+                            subdistrict = subdistrict,
+                            district = district,
+                            province = province,
+                            dataStatus = if (reviewReasons.isEmpty()) DataStatus.VERIFIED else DataStatus.NEEDS_REVIEW
+                        )
+                    }
                 }
 
-                var dataStatus = DataStatus.VERIFIED
-                if (!isNationalIdValid || !hasValidBirthDate) {
-                    dataStatus = DataStatus.NEEDS_REVIEW
-                    needsReviewCount++
+                // Person Matching
+                val existingPerson = personsByUuid[personUuid]
+                    ?: (if (normalizedNatId != null) personsByNationalId[normalizedNatId] else null)
+
+                // Detect DB-level UUID conflicts
+                if (existingPerson != null && existingPerson.personUuid != personUuid && rawPersonUuid.isNotBlank()) {
+                    isDuplicateUuid = true
+                    reviewReasons.add("personUuid ขัดแย้งกับบุคคลที่มีอยู่แล้วในระบบ")
                 }
 
-                rowsToProcess.add(
-                    ImportRowData(
-                        rowNum = i + 1,
-                        householdUuid = householdUuid.ifBlank { java.util.UUID.randomUUID().toString() },
-                        personUuid = personUuid.ifBlank { java.util.UUID.randomUUID().toString() },
-                        houseNo = houseNo,
-                        villageNo = villageNo,
-                        subdistrict = subdistrict,
-                        district = district,
-                        province = province,
-                        nationalId = nationalId,
-                        fullName = fullName,
-                        gender = gender,
-                        birthDate = birthDate,
-                        isBirthYearOnly = isBirthYearOnly,
-                        houseStatus = houseStatus,
-                        personStatus = personStatus,
-                        dataStatus = dataStatus,
-                        isNationalIdValid = isNationalIdValid
+                // Determine Action
+                val action: ImportAction = when {
+                    isDuplicateUuid || isAmbiguousHousehold || reviewReasons.isNotEmpty() -> {
+                        ImportAction.NEEDS_REVIEW
+                    }
+                    existingPerson != null -> {
+                        ImportAction.UPDATE
+                    }
+                    else -> {
+                        ImportAction.INSERT
+                    }
+                }
+
+                val finalDataStatus = if (action == ImportAction.NEEDS_REVIEW) {
+                    DataStatus.NEEDS_REVIEW
+                } else {
+                    DataStatus.fromString(rawDataStatus).takeIf { it != DataStatus.NEEDS_REVIEW } ?: DataStatus.VERIFIED
+                }
+
+                val person = Person(
+                    id = existingPerson?.id ?: 0,
+                    personUuid = personUuid,
+                    householdId = targetHouseholdId,
+                    nationalId = normalizedNatId,
+                    fullName = fullName,
+                    gender = Gender.fromString(rawGender),
+                    birthDate = birthDate,
+                    isBirthYearOnly = isBirthYearOnly,
+                    houseStatus = HouseholdRole.fromString(rawHouseStatus),
+                    personStatus = PersonStatus.fromString(rawPersonStatus),
+                    dataStatus = finalDataStatus
+                )
+
+                plannedItems.add(
+                    PlannedPersonImport(
+                        rowNum = rowNum,
+                        action = action,
+                        personData = person,
+                        householdData = householdCandidate,
+                        isNewHousehold = isNewHousehold,
+                        nationalIdStatus = nationalIdStatus,
+                        isAmbiguousHousehold = isAmbiguousHousehold,
+                        isDuplicateUuid = isDuplicateUuid,
+                        reviewReasons = reviewReasons
                     )
                 )
             }
             workbook.close()
-
-            database.withTransaction {
-                val householdDao = database.householdDao()
-                val personDao = database.personDao()
-                val historyDao = database.personHistoryDao()
-
-                val existingHouseholds = householdDao.getAllHouseholds()
-                val householdsByUuid = existingHouseholds.associateBy { it.householdUuid }
-                val householdsByAddress = existingHouseholds.associateBy { h ->
-                    "${h.houseNo.trim()}|${h.villageNo.trim()}|${h.subdistrict.trim()}|${h.district.trim()}|${h.province.trim()}".lowercase()
-                }
-
-                val existingPersons = personDao.getAllPersonsList()
-                val personsByUuid = existingPersons.associateBy { it.personUuid }.toMutableMap()
-                val personsByNationalId = existingPersons.filter { !it.nationalId.isNullOrBlank() }.associateBy { it.nationalId!! }.toMutableMap()
-
-                val seenNationalIdsInFile = mutableSetOf<String>()
-                val seenPersonUuidsInFile = mutableSetOf<String>()
-
-                val mutableHouseholdsByUuid = householdsByUuid.toMutableMap()
-                val mutableHouseholdsByAddress = householdsByAddress.toMutableMap()
-
-                for (data in rowsToProcess) {
-                    if (data.nationalId != null) {
-                        if (!seenNationalIdsInFile.add(data.nationalId)) {
-                            duplicateCount++
-                            errors.add(ImportError(data.rowNum, "เลขบัตรประชาชนซ้ำภายในไฟล์ Excel (${data.nationalId})"))
-                            continue
-                        }
-                    }
-                    if (!seenPersonUuidsInFile.add(data.personUuid)) {
-                        data.personUuid = java.util.UUID.randomUUID().toString()
-                    }
-
-                    val addressKey = "${data.houseNo.trim()}|${data.villageNo.trim()}|${data.subdistrict.trim()}|${data.district.trim()}|${data.province.trim()}".lowercase()
-                    
-                    var household = mutableHouseholdsByUuid[data.householdUuid]
-                        ?: mutableHouseholdsByAddress[addressKey]
-
-                    val householdId: Long = if (household != null) {
-                        household.id
-                    } else {
-                        val newHousehold = Household(
-                            householdUuid = data.householdUuid,
-                            houseNo = data.houseNo,
-                            villageNo = data.villageNo,
-                            subdistrict = data.subdistrict,
-                            district = data.district,
-                            province = data.province,
-                            dataStatus = data.dataStatus
-                        )
-                        val newId = householdDao.insert(newHousehold)
-                        val inserted = newHousehold.copy(id = newId)
-                        mutableHouseholdsByUuid[inserted.householdUuid] = inserted
-                        mutableHouseholdsByAddress[addressKey] = inserted
-                        newId
-                    }
-
-                    val existingPerson = personsByUuid[data.personUuid] 
-                        ?: (if (data.nationalId != null) personsByNationalId[data.nationalId] else null)
-
-                    if (existingPerson != null) {
-                        val updatedPerson = existingPerson.copy(
-                            householdId = householdId,
-                            nationalId = data.nationalId ?: existingPerson.nationalId,
-                            fullName = data.fullName.ifBlank { existingPerson.fullName },
-                            gender = data.gender,
-                            birthDate = data.birthDate ?: existingPerson.birthDate,
-                            isBirthYearOnly = data.isBirthYearOnly,
-                            houseStatus = data.houseStatus,
-                            personStatus = data.personStatus,
-                            dataStatus = data.dataStatus
-                        )
-                        personDao.updatePerson(updatedPerson)
-                        historyDao.insert(
-                            PersonHistory(
-                                personId = existingPerson.id,
-                                action = "UPDATE_EXCEL",
-                                oldValue = existingPerson.toString(),
-                                newValue = updatedPerson.toString(),
-                                operatorId = "IMPORT_USER",
-                                operatorName = "Excel Importer",
-                                role = "ADMIN",
-                                deviceId = "local",
-                                source = "EXCEL_IMPORT"
-                            )
-                        )
-                        successCount++
-                    } else {
-                        val newPerson = Person(
-                            personUuid = data.personUuid,
-                            householdId = householdId,
-                            nationalId = data.nationalId,
-                            fullName = data.fullName,
-                            gender = data.gender,
-                            birthDate = data.birthDate,
-                            isBirthYearOnly = data.isBirthYearOnly,
-                            houseStatus = data.houseStatus,
-                            personStatus = data.personStatus,
-                            dataStatus = data.dataStatus
-                        )
-                        val insertedId = personDao.insertPerson(newPerson)
-                        personsByUuid[newPerson.personUuid] = newPerson.copy(id = insertedId)
-                        if (newPerson.nationalId != null) {
-                            personsByNationalId[newPerson.nationalId] = newPerson.copy(id = insertedId)
-                        }
-
-                        historyDao.insert(
-                            PersonHistory(
-                                personId = insertedId,
-                                action = "CREATE_EXCEL",
-                                oldValue = null,
-                                newValue = newPerson.toString(),
-                                operatorId = "IMPORT_USER",
-                                operatorName = "Excel Importer",
-                                role = "ADMIN",
-                                deviceId = "local",
-                                source = "EXCEL_IMPORT"
-                            )
-                        )
-                        successCount++
-                    }
-                }
-            }
-
         } catch (e: Exception) {
             e.printStackTrace()
             errors.add(ImportError(0, "เกิดข้อผิดพลาดในการอ่านไฟล์: ${e.message}"))
         }
 
-        return ExcelImportResult(
+        return ImportPlan(
+            plannedItems = plannedItems,
             totalRows = totalRows,
+            insertCount = plannedItems.count { it.action == ImportAction.INSERT },
+            updateCount = plannedItems.count { it.action == ImportAction.UPDATE },
+            skipCount = plannedItems.count { it.action == ImportAction.SKIP },
+            needsReviewCount = plannedItems.count { it.action == ImportAction.NEEDS_REVIEW },
+            errors = errors
+        )
+    }
+
+    suspend fun commitImportPlan(plan: ImportPlan): ExcelImportResult {
+        var successCount = 0
+        var failedCount = plan.errors.size
+        var duplicateCount = 0
+        var invalidNationalIdCount = 0
+        var invalidBirthDateCount = 0
+        var needsReviewCount = 0
+        val errors = plan.errors.toMutableList()
+
+        database.withTransaction {
+            val householdDao = database.householdDao()
+            val personDao = database.personDao()
+            val historyDao = database.personHistoryDao()
+
+            val existingHouseholds = householdDao.getAllHouseholds().associateBy { it.householdUuid }.toMutableMap()
+            val existingPersonsByUuid = personDao.getAllPersonsList().associateBy { it.personUuid }.toMutableMap()
+            val existingPersonsByNatId = personDao.getAllPersonsList().filter { !it.nationalId.isNullOrBlank() }.associateBy { it.nationalId!! }.toMutableMap()
+
+            for (item in plan.plannedItems) {
+                if (item.action == ImportAction.SKIP) continue
+
+                if (item.isDuplicateUuid) {
+                    duplicateCount++
+                }
+                if (item.nationalIdStatus == NationalIdStatus.INVALID) {
+                    invalidNationalIdCount++
+                }
+                if (item.personData.birthDate == null) {
+                    invalidBirthDateCount++
+                }
+                if (item.action == ImportAction.NEEDS_REVIEW) {
+                    needsReviewCount++
+                }
+
+                try {
+                    // Resolve household ID
+                    var householdId = item.personData.householdId
+                    if (householdId == 0L || item.isNewHousehold) {
+                        val existingH = existingHouseholds[item.householdData.householdUuid]
+                        if (existingH != null) {
+                            householdId = existingH.id
+                        } else {
+                            val newHId = householdDao.insert(item.householdData)
+                            householdId = newHId
+                            existingHouseholds[item.householdData.householdUuid] = item.householdData.copy(id = newHId)
+                        }
+                    }
+
+                    val personToSave = item.personData.copy(householdId = householdId)
+
+                    val existingPerson = existingPersonsByUuid[personToSave.personUuid]
+                        ?: (if (personToSave.nationalId != null) existingPersonsByNatId[personToSave.nationalId] else null)
+
+                    if (existingPerson != null) {
+                        val updated = existingPerson.copy(
+                            householdId = householdId,
+                            nationalId = personToSave.nationalId ?: existingPerson.nationalId,
+                            fullName = personToSave.fullName.ifBlank { existingPerson.fullName },
+                            gender = personToSave.gender,
+                            birthDate = personToSave.birthDate ?: existingPerson.birthDate,
+                            isBirthYearOnly = personToSave.isBirthYearOnly,
+                            houseStatus = personToSave.houseStatus,
+                            personStatus = personToSave.personStatus,
+                            dataStatus = personToSave.dataStatus
+                        )
+                        personDao.updatePerson(updated)
+                        historyDao.insert(
+                            PersonHistory(
+                                personId = existingPerson.id,
+                                action = "UPDATE_EXCEL",
+                                oldValue = existingPerson.toString(),
+                                newValue = updated.toString(),
+                                operatorId = "IMPORT_USER",
+                                operatorName = "Excel Importer",
+                                role = "ADMIN",
+                                deviceId = "local",
+                                source = "EXCEL_IMPORT"
+                            )
+                        )
+                        successCount++
+                    } else {
+                        val newId = personDao.insertPerson(personToSave)
+                        val insertedPerson = personToSave.copy(id = newId)
+                        existingPersonsByUuid[insertedPerson.personUuid] = insertedPerson
+                        if (insertedPerson.nationalId != null) {
+                            existingPersonsByNatId[insertedPerson.nationalId] = insertedPerson
+                        }
+                        historyDao.insert(
+                            PersonHistory(
+                                personId = newId,
+                                action = "CREATE_EXCEL",
+                                oldValue = null,
+                                newValue = insertedPerson.toString(),
+                                operatorId = "IMPORT_USER",
+                                operatorName = "Excel Importer",
+                                role = "ADMIN",
+                                deviceId = "local",
+                                source = "EXCEL_IMPORT"
+                            )
+                        )
+                        successCount++
+                    }
+                } catch (e: Exception) {
+                    failedCount++
+                    errors.add(ImportError(item.rowNum, "บันทึกข้อมูลล้มเหลว: ${e.message}"))
+                }
+            }
+        }
+
+        return ExcelImportResult(
+            totalRows = plan.totalRows,
             successCount = successCount,
-            failedCount = errors.size,
+            failedCount = failedCount,
             duplicateCount = duplicateCount,
             invalidNationalIdCount = invalidNationalIdCount,
             invalidBirthDateCount = invalidBirthDateCount,
@@ -282,6 +388,33 @@ class ExcelImportUseCase(
             needsReviewCount = needsReviewCount,
             errors = errors
         )
+    }
+
+    suspend operator fun invoke(inputStream: InputStream): ExcelImportResult {
+        val plan = createImportPlan(inputStream)
+        return commitImportPlan(plan)
+    }
+
+    private fun buildAddressKey(houseNo: String, villageNo: String, subdistrict: String, district: String, province: String): String {
+        return "${houseNo.trim()}|${villageNo.trim()}|${subdistrict.trim()}|${district.trim()}|${province.trim()}".lowercase()
+    }
+
+    private fun getCellByHeader(row: Row, headerMap: Map<String, Int>, key: String, defaultIdx: Int): String {
+        val idx = headerMap[key] ?: defaultIdx
+        return if (idx in 0 until row.lastCellNum) {
+            getCellValueAsString(row.getCell(idx))
+        } else {
+            ""
+        }
+    }
+
+    private fun getCellObjectByHeader(row: Row, headerMap: Map<String, Int>, key: String, defaultIdx: Int): Cell? {
+        val idx = headerMap[key] ?: defaultIdx
+        return if (idx in 0 until row.lastCellNum) {
+            row.getCell(idx)
+        } else {
+            null
+        }
     }
 
     private fun getCellValueAsString(cell: Cell?): String {
@@ -326,23 +459,3 @@ class ExcelImportUseCase(
         }
     }
 }
-
-data class ImportRowData(
-    val rowNum: Int,
-    var householdUuid: String,
-    var personUuid: String,
-    val houseNo: String,
-    val villageNo: String,
-    val subdistrict: String,
-    val district: String,
-    val province: String,
-    val nationalId: String?,
-    val fullName: String,
-    val gender: Gender,
-    val birthDate: LocalDate?,
-    val isBirthYearOnly: Boolean,
-    val houseStatus: HouseholdRole,
-    val personStatus: PersonStatus,
-    val dataStatus: DataStatus,
-    val isNationalIdValid: Boolean
-)

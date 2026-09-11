@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -74,6 +75,7 @@ fun PersonFormScreen(
                 TextButton(onClick = {
                     datePickerState.selectedDateMillis?.let { millis ->
                         birthDate = Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                        isBirthYearOnly = false
                     }
                     showDatePicker = false
                 }) { Text("ตกลง") }
@@ -158,7 +160,7 @@ fun PersonFormScreen(
                         }
                         Box(modifier = Modifier.weight(1f)) {
                             OutlinedTextField(
-                                value = com.example.utils.ValidationUtils.formatThaiDateDisplay(birthDate, false),
+                                value = com.example.utils.ValidationUtils.formatThaiDateDisplay(birthDate, isBirthYearOnly),
                                 onValueChange = {},
                                 label = { Text("วันเกิด") },
                                 readOnly = true,
@@ -170,6 +172,54 @@ fun PersonFormScreen(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = isBirthYearOnly,
+                            onCheckedChange = { checked ->
+                                isBirthYearOnly = checked
+                                if (checked && birthDate != null) {
+                                    birthDate = LocalDate.of(birthDate!!.year, 1, 1)
+                                }
+                            }
+                        )
+                        Text(
+                            text = "ระบุเฉพาะปีเกิด (พ.ศ.) ไม่ทราบวันเดือน",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.clickable {
+                                isBirthYearOnly = !isBirthYearOnly
+                                if (isBirthYearOnly && birthDate != null) {
+                                    birthDate = LocalDate.of(birthDate!!.year, 1, 1)
+                                }
+                            }
+                        )
+                    }
+
+                    if (isBirthYearOnly) {
+                        var yearInput by remember(birthDate) {
+                            mutableStateOf(if (birthDate != null) (birthDate!!.year + 543).toString() else "")
+                        }
+                        OutlinedTextField(
+                            value = yearInput,
+                            onValueChange = { input ->
+                                if (input.length <= 4 && input.all { it.isDigit() }) {
+                                    yearInput = input
+                                    if (input.length == 4) {
+                                        val y = input.toInt()
+                                        val adYear = if (y > 2400) y - 543 else y
+                                        birthDate = LocalDate.of(adYear, 1, 1)
+                                    }
+                                }
+                            },
+                            label = { Text("ระบุปีเกิด พ.ศ. (เช่น 2498)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
                     }
                 }
 
@@ -202,32 +252,30 @@ fun PersonFormScreen(
                 Button(
                     onClick = {
                         coroutineScope.launch {
-                            if (!viewModel.validateThaiNationalId(nationalId)) {
-                                // Have to mutate a local state but since nationalIdError is inside the composable block, 
-                                // it's better to just show toast for simplicity, but I can't access it here easily.
+                            val normalizedId = com.example.utils.ValidationUtils.normalizeNationalId(nationalId)
+                            if (normalizedId.isNotBlank() && !viewModel.validateThaiNationalId(normalizedId)) {
                                 Toast.makeText(context, "เลขบัตรประชาชนไม่ถูกต้องตามหลักการคำนวณ", Toast.LENGTH_SHORT).show()
                                 return@launch
                             }
                             
-                            // Normalize National ID
-                            val normalizedId = com.example.utils.ValidationUtils.normalizeNationalId(nationalId)
-                            
                             // Check for duplicates
-                            val existingPerson = viewModel.getPersonByNationalId(normalizedId)
-                            if (existingPerson != null && existingPerson.id != personId) {
-                                Toast.makeText(context, "เลขบัตรประชาชนนี้มีอยู่ในระบบแล้ว", Toast.LENGTH_SHORT).show()
-                                return@launch
+                            if (normalizedId.isNotBlank()) {
+                                val existingPerson = viewModel.getPersonByNationalId(normalizedId)
+                                if (existingPerson != null && existingPerson.id != personId) {
+                                    Toast.makeText(context, "เลขบัตรประชาชนนี้มีอยู่ในระบบแล้ว", Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
                             }
 
                             if (fullName.isNotBlank() && householdId != -1L) {
                                 val person = Person(
                                     id = if (personId == -1L) 0 else personId,
                                     householdId = householdId,
-                                    nationalId = normalizedId,
+                                    nationalId = normalizedId.ifBlank { null },
                                     fullName = fullName,
                                     gender = gender,
                                     birthDate = birthDate,
-                                    isBirthYearOnly = false, // Set false for manual UI entries
+                                    isBirthYearOnly = isBirthYearOnly,
                                     houseStatus = houseStatus,
                                     personStatus = personStatus,
                                     dataStatus = dataStatus

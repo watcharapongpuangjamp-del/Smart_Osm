@@ -19,7 +19,7 @@ interface PersonDao {
     @Query("SELECT COUNT(*) FROM persons")
     fun getTotalPersonsCount(): Flow<Int>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPerson(person: Person): Long
 
     @Update

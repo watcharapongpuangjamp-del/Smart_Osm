@@ -83,4 +83,19 @@ object ValidationUtils {
         if (accuracy != null && accuracy <= 0f) return false
         return true
     }
+
+    fun checkNationalIdStatus(id: String?, isUnverified: Boolean = false): NationalIdStatus {
+        if (id == null || id.isBlank()) return NationalIdStatus.MISSING
+        val normalized = normalizeNationalId(id)
+        if (normalized.isBlank()) return NationalIdStatus.MISSING
+        if (isUnverified) return NationalIdStatus.UNVERIFIED
+        return if (isValidThaiNationalId(normalized)) NationalIdStatus.VALID else NationalIdStatus.INVALID
+    }
+}
+
+enum class NationalIdStatus {
+    VALID,
+    INVALID,
+    MISSING,
+    UNVERIFIED
 }

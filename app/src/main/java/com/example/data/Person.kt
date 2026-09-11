@@ -27,12 +27,12 @@ data class Person(
     val id: Long = 0,
     val personUuid: String = java.util.UUID.randomUUID().toString(),
     val householdId: Long,
-    val nationalId: String?,
+    val nationalId: String? = null,
     val fullName: String,
-    val gender: Gender,
-    val birthDate: LocalDate?,
+    val gender: Gender = Gender.MALE,
+    val birthDate: LocalDate? = null,
     val isBirthYearOnly: Boolean = false,
-    val houseStatus: HouseholdRole,
-    val personStatus: PersonStatus,
+    val houseStatus: HouseholdRole = HouseholdRole.RESIDENT,
+    val personStatus: PersonStatus = PersonStatus.ALIVE,
     val dataStatus: DataStatus = DataStatus.NEEDS_REVIEW
 )

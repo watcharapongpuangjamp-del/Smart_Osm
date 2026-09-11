@@ -160,14 +160,10 @@ class PersonViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val workbook = org.apache.poi.xssf.usermodel.XSSFWorkbook()
-                val sheet = workbook.createSheet("SMART_OSM_V1")
+                val sheet = workbook.createSheet(com.example.domain.SmartOsmExcelSchema.SHEET_NAME)
                 
                 val hRow = sheet.createRow(0)
-                val headers = listOf(
-                    "schemaVersion", "householdUuid", "personUuid", "houseNo", "villageNo",
-                    "subdistrict", "district", "province", "nationalId", "fullName",
-                    "gender", "birthDate", "birthDatePrecision", "houseStatus", "personStatus", "dataStatus"
-                )
+                val headers = com.example.domain.SmartOsmExcelSchema.CANONICAL_COLUMNS
                 headers.forEachIndexed { idx, title ->
                     hRow.createCell(idx).setCellValue(title)
                 }
@@ -179,7 +175,7 @@ class PersonViewModel(
                     val row = sheet.createRow(index + 1)
                     val h = households[p.householdId]
 
-                    row.createCell(0).setCellValue("SMART_OSM_EXCEL_V1")
+                    row.createCell(0).setCellValue(com.example.domain.SmartOsmExcelSchema.SCHEMA_VERSION)
                     row.createCell(1).setCellValue(h?.householdUuid ?: "")
                     row.createCell(2).setCellValue(p.personUuid)
                     row.createCell(3).setCellValue(h?.houseNo ?: "")
