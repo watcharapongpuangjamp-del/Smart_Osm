@@ -89,9 +89,18 @@ fun AppNavigation(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = BottomNavItem.Households.route,
+            startDestination = "splash",
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable("splash") {
+                SplashScreen(
+                    onStartApp = {
+                        navController.navigate(BottomNavItem.Households.route) {
+                            popUpTo("splash") { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable(BottomNavItem.Dashboard.route) {
                 DashboardScreen(viewModel = viewModel)
             }
