@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,6 +28,7 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
     object Dashboard : BottomNavItem("dashboard", "หน้าแรก", Icons.Filled.Dashboard)
     object Households : BottomNavItem("households", "ครัวเรือน", Icons.Filled.Home)
     object Map : BottomNavItem("map", "แผนที่", Icons.Filled.LocationOn)
+    object Persons : BottomNavItem("persons", "ประชากร", Icons.Filled.People)
     object Info : BottomNavItem("developer_info", "ข้อมูล อสม.", Icons.Filled.Info)
 }
 
@@ -39,6 +41,7 @@ fun AppNavigation(
     val items = listOf(
         BottomNavItem.Dashboard,
         BottomNavItem.Households,
+        BottomNavItem.Persons,
         BottomNavItem.Map,
         BottomNavItem.Info
     )
@@ -95,8 +98,18 @@ fun AppNavigation(
             composable("splash") {
                 SplashScreen(
                     onStartApp = {
-                        navController.navigate(BottomNavItem.Dashboard.route) {
+                        navController.navigate("pin_lock") {
                             popUpTo("splash") { inclusive = true }
+                        }
+                    }
+                )
+            }
+            
+            composable("pin_lock") {
+                PinLockScreen(
+                    onUnlock = {
+                        navController.navigate(BottomNavItem.Dashboard.route) {
+                            popUpTo("pin_lock") { inclusive = true }
                         }
                     }
                 )
@@ -130,6 +143,15 @@ fun AppNavigation(
                     onHouseClick = { householdId -> navController.navigate("house_detail/$householdId") },
                     onAddHouseClick = { navController.navigate("household_form/-1") },
                     onScanQrClick = { navController.navigate("qr_scanner") }
+                )
+            }
+
+            composable(BottomNavItem.Persons.route) {
+                PersonListScreen(
+                    viewModel = viewModel,
+                    onPersonClick = { personId, householdId -> 
+                        navController.navigate("person_form/$personId?householdId=$householdId") 
+                    }
                 )
             }
             composable(BottomNavItem.Map.route) {
