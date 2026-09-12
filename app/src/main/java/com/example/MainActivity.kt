@@ -36,12 +36,13 @@ class MainActivity : ComponentActivity() {
         ).build()
         val repository = PersonRepository(db, db.personDao(), db.householdDao(), db.personHistoryDao())
         val excelImportUseCase = com.example.domain.ExcelImportUseCase(db)
+        val syncHelper = com.example.data.sync.RoomFirestoreSyncHelper(applicationContext, repository)
 
         val factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(PersonViewModel::class.java)) {
                     @Suppress("UNCHECKED_CAST")
-                    return PersonViewModel(repository, excelImportUseCase) as T
+                    return PersonViewModel(repository, excelImportUseCase, syncHelper) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")
             }

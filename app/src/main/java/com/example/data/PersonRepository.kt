@@ -58,6 +58,10 @@ class PersonRepository(
     suspend fun getHouseholdByNo(houseNo: String): Household? {
         return householdDao.getHouseholdByNo(houseNo)
     }
+
+    suspend fun getHouseholdByUuid(uuid: String): Household? {
+        return householdDao.getHouseholdByUuid(uuid)
+    }
     
     fun getHouseholdWithPersonsById(id: Long): Flow<HouseholdWithPersons?> {
         return householdDao.getHouseholdWithPersonsById(id)
@@ -115,6 +119,10 @@ class PersonRepository(
     
     suspend fun getPersonByNationalId(nationalId: String): Person? {
         return personDao.getPersonByNationalId(nationalId)
+    }
+
+    suspend fun getPersonByUuid(uuid: String): Person? {
+        return personDao.getPersonByUuid(uuid)
     }
     
     fun getHistoryForPerson(personId: Long): Flow<List<PersonHistory>> {

@@ -8,6 +8,9 @@ data class HouseSummary(
     val females: Int,
     val owners: Int,
     val residents: Int,
+    val deceased: Int = 0,
+    val elderly: Int = 0,
+    val children: Int = 0,
     val latitude: Double?,
     val longitude: Double?
 )

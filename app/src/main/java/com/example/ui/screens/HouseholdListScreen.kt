@@ -9,12 +9,14 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
@@ -50,7 +52,8 @@ import android.widget.Toast
 fun HouseholdListScreen(
     viewModel: PersonViewModel,
     onHouseClick: (Long) -> Unit,
-    onAddHouseClick: () -> Unit
+    onAddHouseClick: () -> Unit,
+    onScanQrClick: () -> Unit = {}
 ) {
     val houseSummary by viewModel.houseSummary.collectAsStateWithLifecycle()
     val importResult by viewModel.importResult.collectAsStateWithLifecycle()
@@ -59,7 +62,16 @@ fun HouseholdListScreen(
     val focusManager = LocalFocusManager.current
 
     var searchQuery by remember { mutableStateOf("") }
-    
+    var selectedFilter by remember { mutableStateOf("ทั้งหมด") }
+
+    val filterOptions = listOf(
+        "ทั้งหมด", 
+        "มีผู้สูงอายุ", 
+        "มีเด็กเล็ก", 
+        "มีผู้เสียชีวิต", 
+        "ไม่มีพิกัด GPS"
+    )
+
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -144,9 +156,18 @@ fun HouseholdListScreen(
         )
     }
 
-    val filteredList = remember(houseSummary, searchQuery) {
-        if (searchQuery.isBlank()) houseSummary
-        else houseSummary.filter { it.houseNo.contains(searchQuery.trim(), ignoreCase = true) }
+    val filteredList = remember(houseSummary, searchQuery, selectedFilter) {
+        var result = houseSummary
+        if (searchQuery.isNotBlank()) {
+            result = result.filter { it.houseNo.contains(searchQuery.trim(), ignoreCase = true) }
+        }
+        when (selectedFilter) {
+            "มีผู้สูงอายุ" -> result = result.filter { it.elderly > 0 }
+            "มีเด็กเล็ก" -> result = result.filter { it.children > 0 }
+            "มีผู้เสียชีวิต" -> result = result.filter { it.deceased > 0 }
+            "ไม่มีพิกัด GPS" -> result = result.filter { it.latitude == null || it.longitude == null || it.latitude == 0.0 }
+        }
+        result
     }
 
     Scaffold(
@@ -174,6 +195,9 @@ fun HouseholdListScreen(
                     actionIconContentColor = Color.White
                 ),
                 actions = {
+                    IconButton(onClick = onScanQrClick) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = "สแกน QR Code")
+                    }
                     ThemeQuickToggleButton(iconTint = Color.White)
                     IconButton(
                         onClick = { exportLauncher.launch("smart_osm_households.xlsx") }
@@ -247,6 +271,33 @@ fun HouseholdListScreen(
                 }
             }
 
+            // Filter Chips
+            item(span = { GridItemSpan(2) }) {
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(filterOptions) { option ->
+                        val isSelected = selectedFilter == option
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedFilter = option },
+                            label = { Text(option) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = EmeraldPrimary,
+                                selectedLabelColor = Color.White
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline
+                            )
+                        )
+                    }
+                }
+            }
+
             // Quick Data Sync Banner
             item(span = { GridItemSpan(2) }) {
                 Row(
@@ -280,6 +331,24 @@ fun HouseholdListScreen(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+            }
+
+            // Quick Import Button for PopulationData_Moo8.xlsx
+            item(span = { GridItemSpan(2) }) {
+                Button(
+                    onClick = {
+                        viewModel.importWorkspaceExcelFile("PopulationData_Moo8.xlsx") { success, msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Filled.UploadFile, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("นำเข้าข้อมูล หมู่ 8 ล่าสุด (PopulationData_Moo8.xlsx)", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             }
 

@@ -118,6 +118,9 @@ fun AppNavigation(
                     },
                     onNavigateToHouseDetail = { householdId ->
                         navController.navigate("house_detail/$householdId")
+                    },
+                    onNavigateToQrScan = {
+                        navController.navigate("qr_scanner")
                     }
                 )
             }
@@ -125,7 +128,8 @@ fun AppNavigation(
                 HouseholdListScreen(
                     viewModel = viewModel,
                     onHouseClick = { householdId -> navController.navigate("house_detail/$householdId") },
-                    onAddHouseClick = { navController.navigate("household_form/-1") }
+                    onAddHouseClick = { navController.navigate("household_form/-1") },
+                    onScanQrClick = { navController.navigate("qr_scanner") }
                 )
             }
             composable(BottomNavItem.Map.route) {
@@ -135,7 +139,31 @@ fun AppNavigation(
                 )
             }
             composable(BottomNavItem.Info.route) {
-                DeveloperInfoScreen()
+                DeveloperInfoScreen(
+                    onNavigateToCloudSync = { navController.navigate("cloud_sync") }
+                )
+            }
+            composable("cloud_sync") {
+                CloudSyncScreen(
+                    viewModel = viewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("qr_scanner") {
+                QrScannerScreen(
+                    viewModel = viewModel,
+                    onPersonFound = { personId ->
+                        val person = viewModel.allPersons.value.find { it.id == personId }
+                        if (person != null) {
+                            navController.navigate("house_detail/${person.householdId}") {
+                                popUpTo(BottomNavItem.Dashboard.route)
+                            }
+                        } else {
+                            navController.popBackStack()
+                        }
+                    },
+                    onBack = { navController.popBackStack() }
+                )
             }
             
             composable(

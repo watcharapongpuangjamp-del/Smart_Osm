@@ -48,7 +48,8 @@ fun DashboardScreen(
     onNavigateToNewHousehold: () -> Unit = {},
     onNavigateToMap: () -> Unit = {},
     onNavigateToInfo: () -> Unit = {},
-    onNavigateToHouseDetail: (Long) -> Unit = {}
+    onNavigateToHouseDetail: (Long) -> Unit = {},
+    onNavigateToQrScan: () -> Unit = {}
 ) {
     val allPersons by viewModel.allPersons.collectAsStateWithLifecycle()
     val allHouseholdsWithPersons by viewModel.allHouseholdsWithPersons.collectAsStateWithLifecycle()
@@ -131,6 +132,9 @@ fun DashboardScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToQrScan) {
+                        Icon(Icons.Filled.CameraAlt, contentDescription = "สแกน QR Code", tint = Color.White)
+                    }
                     ThemeQuickToggleButton(iconTint = Color.White)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -603,60 +607,44 @@ fun DashboardScreen(
                                 }
                             } else {
                                 val standardGroups = listOf(
-                                    "เด็กเล็ก (0-5)",
-                                    "เด็กวัยเรียน (6-12)",
-                                    "วัยรุ่น (13-17)",
-                                    "วัยหนุ่มสาว (18-24)",
-                                    "วัยทำงานตอนต้น (25-39)",
-                                    "วัยทำงานตอนกลาง (40-59)",
-                                    "ผู้สูงอายุ (60+)"
+                                    "0-5",
+                                    "6-12",
+                                    "13-17",
+                                    "18-24",
+                                    "25-39",
+                                    "40-59",
+                                    "60+"
                                 )
-                                val maxVal = ageGroupSummary.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+                                val dataList = listOf(
+                                    ageGroupSummary["เด็กเล็ก (0-5)"] ?: 0,
+                                    ageGroupSummary["เด็กวัยเรียน (6-12)"] ?: 0,
+                                    ageGroupSummary["วัยรุ่น (13-17)"] ?: 0,
+                                    ageGroupSummary["วัยหนุ่มสาว (18-24)"] ?: 0,
+                                    ageGroupSummary["วัยทำงานตอนต้น (25-39)"] ?: 0,
+                                    ageGroupSummary["วัยทำงานตอนกลาง (40-59)"] ?: 0,
+                                    ageGroupSummary["ผู้สูงอายุ (60+)"] ?: 0
+                                )
 
-                                standardGroups.forEach { group ->
-                                    val count = ageGroupSummary[group] ?: 0
-                                    val progress = (count.toFloat() / maxVal).coerceIn(0f, 1f)
+                                val chartEntryModel = com.patrykandpatrick.vico.core.entry.entryModelOf(*dataList.map { it.toFloat() }.toTypedArray())
 
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = group,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            Text(
-                                                text = "$count คน",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = if (group.contains("สูงอายุ")) GoldenAmber else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                fontWeight = if (group.contains("สูงอายุ")) FontWeight.Bold else FontWeight.SemiBold
-                                            )
-                                        }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(7.dp)
-                                                .clip(RoundedCornerShape(100.dp))
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(progress)
-                                                    .fillMaxHeight()
-                                                    .clip(RoundedCornerShape(100.dp))
-                                                    .background(
-                                                        if (group.contains("สูงอายุ")) GoldenAmber
-                                                        else if (group.contains("เด็ก")) TealLight
-                                                        else MaterialTheme.colorScheme.primary
-                                                    )
-                                            )
-                                        }
-                                    }
-                                }
+                                com.patrykandpatrick.vico.compose.chart.Chart(
+                                    chart = com.patrykandpatrick.vico.compose.chart.column.columnChart(
+                                        columns = listOf(com.patrykandpatrick.vico.compose.component.lineComponent(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            thickness = 16.dp,
+                                            shape = com.patrykandpatrick.vico.core.component.shape.Shapes.roundedCornerShape(topLeftPercent = 50, topRightPercent = 50)
+                                        ))
+                                    ),
+                                    model = chartEntryModel,
+                                    startAxis = com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis(
+                                        valueFormatter = { value, _ -> value.toInt().toString() }
+                                    ),
+                                    bottomAxis = com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis(
+                                        valueFormatter = { value, _ -> standardGroups.getOrNull(value.toInt()) ?: "" },
+                                        labelRotationDegrees = -45f
+                                    ),
+                                    modifier = Modifier.fillMaxWidth().height(220.dp)
+                                )
                             }
                         }
                     }

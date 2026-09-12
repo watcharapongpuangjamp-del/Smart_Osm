@@ -29,11 +29,172 @@ import java.time.Period
 import com.example.utils.ValidationUtils
 
 import com.example.data.HouseSummary
+import com.example.data.DataStatus
+import com.example.data.Gender
+import com.example.data.HouseholdRole
+import com.example.data.PersonStatus
+import com.example.data.sync.RoomFirestoreSyncHelper
+import com.example.data.sync.SyncResult
+import com.example.data.sync.SyncState
 
 class PersonViewModel(
     private val repository: PersonRepository,
-    private val excelImportUseCase: com.example.domain.ExcelImportUseCase
+    private val excelImportUseCase: com.example.domain.ExcelImportUseCase,
+    private val syncHelper: RoomFirestoreSyncHelper? = null
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                if (repository.getAllHouseholds().isEmpty()) {
+                    seedBaselineData()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private suspend fun seedBaselineData() {
+        val h1Id = repository.insertHousehold(
+            Household(
+                householdUuid = java.util.UUID.randomUUID().toString(),
+                houseNo = "45/1",
+                villageNo = "8",
+                subdistrict = "ป่าขะ",
+                district = "บ้านนา",
+                province = "นครนายก",
+                latitude = 14.2155,
+                longitude = 101.0723,
+                dataStatus = DataStatus.VERIFIED
+            )
+        )
+        repository.insert(Person(
+            personUuid = java.util.UUID.randomUUID().toString(),
+            householdId = h1Id,
+            nationalId = "3260100123451",
+            fullName = "นายสมชาย ใจดี",
+            gender = Gender.MALE,
+            birthDate = LocalDate.of(1975, 4, 12),
+            houseStatus = HouseholdRole.HEAD,
+            personStatus = PersonStatus.ALIVE,
+            dataStatus = DataStatus.VERIFIED
+        ))
+        repository.insert(Person(
+            personUuid = java.util.UUID.randomUUID().toString(),
+            householdId = h1Id,
+            nationalId = "3260100123452",
+            fullName = "นางสาวสมหญิง ใจดี",
+            gender = Gender.FEMALE,
+            birthDate = LocalDate.of(1978, 9, 25),
+            houseStatus = HouseholdRole.RESIDENT,
+            personStatus = PersonStatus.ALIVE,
+            dataStatus = DataStatus.VERIFIED
+        ))
+        repository.insert(Person(
+            personUuid = java.util.UUID.randomUUID().toString(),
+            householdId = h1Id,
+            nationalId = "3260100123453",
+            fullName = "เด็กชายต้นกล้า ใจดี",
+            gender = Gender.MALE,
+            birthDate = LocalDate.of(2015, 6, 10),
+            houseStatus = HouseholdRole.RESIDENT,
+            personStatus = PersonStatus.ALIVE,
+            dataStatus = DataStatus.VERIFIED
+        ))
+
+        val h2Id = repository.insertHousehold(
+            Household(
+                householdUuid = java.util.UUID.randomUUID().toString(),
+                houseNo = "88",
+                villageNo = "8",
+                subdistrict = "ป่าขะ",
+                district = "บ้านนา",
+                province = "นครนายก",
+                latitude = 14.2162,
+                longitude = 101.0741,
+                dataStatus = DataStatus.VERIFIED
+            )
+        )
+        repository.insert(Person(
+            personUuid = java.util.UUID.randomUUID().toString(),
+            householdId = h2Id,
+            nationalId = "3260100987651",
+            fullName = "นายประเสริฐ มั่งมี",
+            gender = Gender.MALE,
+            birthDate = LocalDate.of(1960, 12, 1),
+            houseStatus = HouseholdRole.HEAD,
+            personStatus = PersonStatus.ALIVE,
+            dataStatus = DataStatus.VERIFIED
+        ))
+        repository.insert(Person(
+            personUuid = java.util.UUID.randomUUID().toString(),
+            householdId = h2Id,
+            nationalId = "3260100987652",
+            fullName = "นางจันทร์ มั่งมี",
+            gender = Gender.FEMALE,
+            birthDate = LocalDate.of(1963, 3, 15),
+            houseStatus = HouseholdRole.RESIDENT,
+            personStatus = PersonStatus.ALIVE,
+            dataStatus = DataStatus.VERIFIED
+        ))
+
+        val h3Id = repository.insertHousehold(
+            Household(
+                householdUuid = java.util.UUID.randomUUID().toString(),
+                houseNo = "12/4",
+                villageNo = "8",
+                subdistrict = "ป่าขะ",
+                district = "บ้านนา",
+                province = "นครนายก",
+                latitude = 14.2140,
+                longitude = 101.0705,
+                dataStatus = DataStatus.VERIFIED
+            )
+        )
+        repository.insert(Person(
+            personUuid = java.util.UUID.randomUUID().toString(),
+            householdId = h3Id,
+            nationalId = "3260100555441",
+            fullName = "นางสาวกัลยา รักสงบ",
+            gender = Gender.FEMALE,
+            birthDate = LocalDate.of(1992, 8, 19),
+            houseStatus = HouseholdRole.HEAD,
+            personStatus = PersonStatus.ALIVE,
+            dataStatus = DataStatus.VERIFIED
+        ))
+    }
+    
+    val syncState: StateFlow<SyncState> = syncHelper?.syncState
+        ?: kotlinx.coroutines.flow.MutableStateFlow(SyncState.Idle)
+
+    fun syncToFirestore(onComplete: ((Result<SyncResult>) -> Unit)? = null) {
+        if (syncHelper == null) return
+        viewModelScope.launch {
+            val result = syncHelper.syncRoomToFirestore()
+            onComplete?.invoke(result)
+        }
+    }
+
+    fun syncFromFirestore(onComplete: ((Result<SyncResult>) -> Unit)? = null) {
+        if (syncHelper == null) return
+        viewModelScope.launch {
+            val result = syncHelper.syncFirestoreToRoom()
+            onComplete?.invoke(result)
+        }
+    }
+
+    fun bidirectionalSync(onComplete: ((Result<SyncResult>) -> Unit)? = null) {
+        if (syncHelper == null) return
+        viewModelScope.launch {
+            val result = syncHelper.bidirectionalSync()
+            onComplete?.invoke(result)
+        }
+    }
+
+    fun resetSyncState() {
+        syncHelper?.resetSyncState()
+    }
     
     private val _importResult = kotlinx.coroutines.flow.MutableStateFlow<com.example.domain.ExcelImportResult?>(null)
     val importResult: StateFlow<com.example.domain.ExcelImportResult?> = _importResult
@@ -43,6 +204,51 @@ class PersonViewModel(
 
     fun clearImportResult() {
         _importResult.value = null
+    }
+
+    fun importWorkspaceExcelFile(fileName: String = "ทะเบียนประชากร_หมู่8_รายงานสรุป-1.xlsx", onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isImporting.value = true
+            try {
+                val possiblePaths = listOf(
+                    fileName,
+                    "ทะเบียนประชากร_หมู่8_รายงานสรุป.xlsx",
+                    "/app/$fileName",
+                    "app/$fileName"
+                )
+                var file: java.io.File? = null
+                for (p in possiblePaths) {
+                    val f = java.io.File(p)
+                    if (f.exists()) {
+                        file = f
+                        break
+                    }
+                }
+
+                if (file == null || !file.exists()) {
+                    withContext(Dispatchers.Main) {
+                        _isImporting.value = false
+                        onComplete(false, "ไม่พบไฟล์ $fileName บนเครื่อง")
+                    }
+                    return@launch
+                }
+
+                val inputStream = file.inputStream()
+                val plan = excelImportUseCase.createImportPlan(inputStream)
+                val result = excelImportUseCase.commitImportPlan(plan)
+                _importResult.value = result
+                withContext(Dispatchers.Main) {
+                    _isImporting.value = false
+                    onComplete(true, "นำเข้าข้อมูลจาก ${file.name} สำเร็จ (${result.successCount} รายการ)")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    _isImporting.value = false
+                    onComplete(false, "เกิดข้อผิดพลาดในการนำเข้า: ${e.message}")
+                }
+            }
+        }
     }
     
     val allPersons: StateFlow<List<Person>> = repository.allPersons.stateIn(

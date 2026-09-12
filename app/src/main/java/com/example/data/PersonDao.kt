@@ -30,6 +30,9 @@ interface PersonDao {
 
     @Query("SELECT * FROM persons WHERE id = :id LIMIT 1")
     suspend fun getPersonById(id: Long): Person?
+
+    @Query("SELECT * FROM persons WHERE personUuid = :uuid LIMIT 1")
+    suspend fun getPersonByUuid(uuid: String): Person?
     
     @Query("SELECT * FROM persons WHERE nationalId = :nationalId LIMIT 1")
     suspend fun getPersonByNationalId(nationalId: String): Person?
